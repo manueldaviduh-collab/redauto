@@ -26,7 +26,7 @@ export async function render(container) {
   container.innerHTML = `
     <header class="top-header top-header--home">
       <div class="brand-lockup">
-        <span class="brand-mark" aria-hidden="true">R</span>
+        <img class="brand-mark" src="assets/logo-mark.png" alt="RedAuto" />
         <span class="brand-word">Red<span class="accent">Auto</span></span>
       </div>
       <div class="top-header__actions">

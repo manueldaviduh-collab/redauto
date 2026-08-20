@@ -174,10 +174,9 @@ img, svg { display: block; max-width: 100%; }
 .brand-lockup--center { justify-content: center; margin: 8px 0 4px; }
 .brand-mark {
   width: 34px; height: 34px; border-radius: 10px;
-  background: linear-gradient(145deg, var(--color-red), var(--color-red-dark));
-  color: var(--color-white); font-weight: 800; font-size: 17px;
-  display: flex; align-items: center; justify-content: center;
+  display: block; object-fit: cover; flex-shrink: 0;
 }
+.brand-lockup--center .brand-mark { width: 52px; height: 52px; border-radius: 14px; }
 .brand-word { font-weight: 700; font-size: 18px; letter-spacing: 0.2px; }
 .brand-word .accent { color: var(--color-red); }
 

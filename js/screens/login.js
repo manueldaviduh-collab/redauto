@@ -11,7 +11,7 @@ export async function render(container, { query }) {
     ${backHeaderHtml('Iniciar sesión')}
     <div class="screen-pad auth-screen">
       <div class="brand-lockup brand-lockup--center">
-        <span class="brand-mark" aria-hidden="true">R</span>
+        <img class="brand-mark" src="assets/logo-mark.png" alt="RedAuto" />
         <span class="brand-word">Red<span class="accent">Auto</span></span>
       </div>
       <p class="auth-screen__subtitle">Inicia sesión para comprar y hacer seguimiento de tus pedidos.</p>
