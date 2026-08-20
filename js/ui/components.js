@@ -1,10 +1,21 @@
 import { icon } from './icons.js';
+import { productArt } from './productArt.js';
 import { getCategoryById } from '../data/categories.js';
 import { productService } from '../services/productService.js';
 import { cartService } from '../services/cartService.js';
 import { favoritesService } from '../services/favoritesService.js';
+import { vehicleService } from '../services/vehicleService.js';
 import { showToast } from './toast.js';
 import { navigate } from '../nav.js';
+
+const STAR_PATH = 'M12 3.5 14.6 9l6 .8-4.4 4.1 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.8l6-.8Z';
+
+// Estrella rellena (no trazo): a tamaños chicos un ícono sólo-contorno no
+// se lee como "estrella de calificación". Se usa en vez de icon('star', …)
+// en todo lo que muestre rating.
+function starGlyph(size, className = '') {
+  return `<svg class="icon ${className}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${STAR_PATH}"/></svg>`;
+}
 
 export function escapeHtml(str = '') {
   return String(str)
@@ -18,15 +29,34 @@ export function formatPrice(value) {
   return `$${Number(value).toFixed(2)}`;
 }
 
-const AVAILABILITY_LABEL = {
-  en_stock: 'En stock',
-  agotado: 'Agotado',
-  bajo_pedido: 'Bajo pedido',
+export function whatsappLink(phone, message) {
+  const digits = String(phone).replace(/\D/g, '');
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+const DELIVERY_OPTION_LABEL = { hoy: 'Entrega hoy', manana: 'Entrega mañana', retiro: 'Retiro en tienda' };
+const DELIVERY_OPTION_ICON = { hoy: 'truck', manana: 'truck', retiro: 'mapPin' };
+
+export function deliveryOptionsRow(options = []) {
+  if (!options.length) return '';
+  return `<div class="delivery-options">${options
+    .map((o) => `<span class="delivery-chip">${icon(DELIVERY_OPTION_ICON[o] || 'truck', { size: 13 })} ${DELIVERY_OPTION_LABEL[o] || o}</span>`)
+    .join('')}</div>`;
+}
+
+const STOCK_TIER = {
+  disponible: { modifier: 'ok', label: 'Disponible', dot: '🟢' },
+  bajas: { modifier: 'wait', label: 'Últimas unidades', dot: '🟡' },
+  agotado: { modifier: 'off', label: 'Agotado', dot: '🔴' },
+  bajo_pedido: { modifier: 'wait', label: 'Bajo pedido', dot: '🟡' },
 };
 
-export function availabilityBadge(availability) {
-  const modifier = availability === 'en_stock' ? 'ok' : availability === 'agotado' ? 'off' : 'wait';
-  return `<span class="badge badge--${modifier}">${AVAILABILITY_LABEL[availability] || availability}</span>`;
+// Estado de inventario en 3 niveles (disponible / últimas unidades /
+// agotado), derivado de availability + stock. `bajo_pedido` es un cuarto
+// estado propio del modelo (se puede encargar aunque no haya stock local).
+export function availabilityBadge(product) {
+  const tier = STOCK_TIER[productService.stockTier(product)];
+  return `<span class="badge badge--${tier.modifier}"><span aria-hidden="true">${tier.dot}</span> ${tier.label}</span>`;
 }
 
 export function typeBadge(type) {
@@ -42,9 +72,28 @@ export function discountBadge(percent) {
 }
 
 export function ratingInline(rating, reviewsCount) {
-  return `<span class="rating">${icon('star', { size: 13, className: 'rating__icon' })}${rating.toFixed(1)}${
+  return `<span class="rating">${starGlyph(13, 'rating__icon')}${rating.toFixed(1)}${
     reviewsCount != null ? ` <span class="rating__count">(${reviewsCount})</span>` : ''
   }</span>`;
+}
+
+// Compatibilidad inteligente: cuando el usuario tiene un vehículo activo en
+// "Mis Vehículos", se resalta si el producto le sirve. `variant: 'banner'`
+// se usa en el detalle de producto (también avisa cuando NO coincide);
+// `inline` (por defecto, para tarjetas de resultados) sólo resalta el match
+// positivo para no llenar la grilla de advertencias.
+export function compatibilityNote(product, { variant = 'inline' } = {}) {
+  const activeVehicle = vehicleService.getActive();
+  if (!activeVehicle) return null;
+  const matches = productService.matchesVehicle(product, activeVehicle);
+  const label = `${activeVehicle.brand} ${activeVehicle.model} ${activeVehicle.year}`;
+  if (variant === 'banner') {
+    return matches
+      ? `<div class="compat-banner compat-banner--ok">${icon('check', { size: 15 })} Compatible con tu ${escapeHtml(label)}</div>`
+      : `<div class="compat-banner compat-banner--warn">${icon('info', { size: 15 })} No está confirmado para tu ${escapeHtml(label)} — revisa la compatibilidad completa abajo</div>`;
+  }
+  if (!matches) return null;
+  return `<p class="compat-inline">${icon('check', { size: 12 })} Compatible con tu ${escapeHtml(label)}</p>`;
 }
 
 function discountPercent(product) {
@@ -57,12 +106,13 @@ function discountPercent(product) {
 // densidad visual sin depender de assets externos.
 export function productTile(product) {
   const category = getCategoryById(product.categoryId);
-  return `<div class="product-tile product-tile--${product.categoryId}">${icon(category?.icon || 'package', { size: 30 })}</div>`;
+  return `<div class="product-tile" role="img" aria-label="${escapeHtml(category?.name || 'Repuesto')}">${productArt(product.categoryId)}</div>`;
 }
 
 export function productCard(product, store) {
   const pct = discountPercent(product);
   const isFav = favoritesService.isFavorite(product.id);
+  const compat = compatibilityNote(product);
   return `
   <article class="product-card" data-product-id="${product.id}" tabindex="0" role="button" aria-label="${escapeHtml(product.name)}">
     <div class="product-card__media">
@@ -72,13 +122,13 @@ export function productCard(product, store) {
     </div>
     <div class="product-card__body">
       <p class="product-card__name">${escapeHtml(product.name)}</p>
-      <p class="product-card__compat">${escapeHtml(productService.compatibilityLabel(product))}</p>
+      ${compat || `<p class="product-card__compat">${escapeHtml(productService.compatibilityLabel(product))}</p>`}
       <div class="product-card__price-row">
         <span class="product-card__price">${formatPrice(product.price)}</span>
         ${product.originalPrice ? `<span class="product-card__price-old">${formatPrice(product.originalPrice)}</span>` : ''}
       </div>
       <div class="product-card__meta">
-        ${availabilityBadge(product.availability)}
+        ${availabilityBadge(product)}
         ${ratingInline(product.rating, product.reviewsCount)}
       </div>
       ${store ? `<p class="product-card__store">${escapeHtml(store.name)} ${icon('shieldCheck', { size: 12, className: 'store-check' })}</p>` : ''}
@@ -94,14 +144,15 @@ export function productCard(product, store) {
 export function productListRow(product, store) {
   const pct = discountPercent(product);
   const isFav = favoritesService.isFavorite(product.id);
+  const compat = compatibilityNote(product);
   return `
   <article class="product-card product-row" data-product-id="${product.id}" tabindex="0" role="button" aria-label="${escapeHtml(product.name)}">
     <div class="product-row__media">${productTile(product)}</div>
     <div class="product-row__body">
       <p class="product-row__name">${escapeHtml(product.name)}</p>
-      <p class="product-row__compat">${escapeHtml(productService.compatibilityLabel(product))}</p>
+      ${compat || `<p class="product-row__compat">${escapeHtml(productService.compatibilityLabel(product))}</p>`}
       <div class="product-row__badges">
-        ${availabilityBadge(product.availability)}
+        ${availabilityBadge(product)}
         ${typeBadge(product.type)}
         ${pct ? discountBadge(pct) : ''}
       </div>
@@ -225,7 +276,15 @@ export function backHeaderHtml(title, { rightHtml = '' } = {}) {
 }
 
 export function starRatingBig(rating) {
-  return `<span class="rating rating--lg">${icon('star', { size: 16, className: 'rating__icon' })}${rating.toFixed(1)}</span>`;
+  return `<span class="rating rating--lg">${starGlyph(16, 'rating__icon')}${rating.toFixed(1)}</span>`;
+}
+
+// Fila de 5 estrellas para calificaciones (resumen y reseñas individuales).
+export function miniStarsRow(rating) {
+  const filled = Math.round(rating);
+  return `<span class="mini-stars" aria-hidden="true">${Array.from({ length: 5 }, (_, i) =>
+    starGlyph(12, i < filled ? 'mini-stars__on' : 'mini-stars__off')
+  ).join('')}</span>`;
 }
 
 // Delegación de eventos compartida por toda tarjeta de producto (home,

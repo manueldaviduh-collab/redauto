@@ -1,6 +1,6 @@
 import { icon } from '../ui/icons.js';
 import {
-  backHeaderHtml, escapeHtml, formatPrice, availabilityBadge, typeBadge, emptyState,
+  backHeaderHtml, escapeHtml, formatPrice, availabilityBadge, typeBadge, emptyState, ratingInline,
 } from '../ui/components.js';
 import { authService } from '../services/authService.js';
 import { sellerService } from '../services/sellerService.js';
@@ -98,7 +98,7 @@ function renderResumen({ kpis }) {
     <div class="kpi-card"><span class="kpi-card__value">${kpis.ordersCount}</span><span class="kpi-card__label">Pedidos</span></div>
     <div class="kpi-card"><span class="kpi-card__value">${kpis.pendingOrders}</span><span class="kpi-card__label">Pendientes</span></div>
     <div class="kpi-card"><span class="kpi-card__value">${kpis.productsCount}</span><span class="kpi-card__label">Productos</span></div>
-    <div class="kpi-card"><span class="kpi-card__value">${icon('star', { size: 14 })} ${kpis.rating.toFixed(1)}</span><span class="kpi-card__label">Calificación</span></div>
+    <div class="kpi-card"><span class="kpi-card__value">${ratingInline(kpis.rating)}</span><span class="kpi-card__label">Calificación</span></div>
   </div>
   <p class="detail-block__text seller-note">${icon('info', { size: 14 })} Estas métricas se calculan localmente a partir del catálogo y los pedidos demo. Un backend real las serviría desde /api/stores/:id/dashboard.</p>
   `;
@@ -131,7 +131,7 @@ function renderInventario({ products }) {
         <div class="inventory-row__body">
           <p class="inventory-row__name">${escapeHtml(p.name)}</p>
           <div class="inventory-row__meta">
-            ${availabilityBadge(p.availability)}
+            ${availabilityBadge(p)}
             ${typeBadge(p.type)}
             <span>${formatPrice(p.price)}</span>
           </div>

@@ -1,12 +1,13 @@
-import { icon } from '../ui/icons.js';
+import { icon, whatsappGlyph } from '../ui/icons.js';
 import {
   productTile, availabilityBadge, typeBadge, verifiedBadge, starRatingBig, formatPrice,
-  escapeHtml, backHeaderHtml, emptyState,
+  escapeHtml, backHeaderHtml, emptyState, compatibilityNote, whatsappLink, deliveryOptionsRow, miniStarsRow, ratingInline,
 } from '../ui/components.js';
 import { productService } from '../services/productService.js';
 import { storeService } from '../services/storeService.js';
 import { cartService } from '../services/cartService.js';
 import { favoritesService } from '../services/favoritesService.js';
+import { sampleReviewsFor } from '../data/reviews.js';
 import { showToast } from '../ui/toast.js';
 import { navigate } from '../nav.js';
 
@@ -26,6 +27,7 @@ export async function render(container, { segments }) {
   const store = await storeService.getById(product.storeId);
   const isFav = favoritesService.isFavorite(product.id);
   const showDiscount = product.originalPrice && product.originalPrice > product.price;
+  const reviews = sampleReviewsFor(product);
   container.classList.add('screen-content--with-sticky-actions');
 
   container.innerHTML = `
@@ -52,9 +54,11 @@ export async function render(container, { segments }) {
       </div>
 
       <div class="product-detail__badges">
-        ${availabilityBadge(product.availability)}
+        ${availabilityBadge(product)}
         ${typeBadge(product.type)}
       </div>
+
+      ${compatibilityNote(product, { variant: 'banner' }) || ''}
 
       <section class="detail-block">
         <h2 class="detail-block__title">Descripción</h2>
@@ -73,10 +77,14 @@ export async function render(container, { segments }) {
         <div class="store-strip__cover">${escapeHtml(store.initials)}</div>
         <div class="store-strip__info">
           <p class="store-strip__name">${escapeHtml(store.name)} ${verifiedBadge({ compact: true })}</p>
-          <p class="store-strip__meta">${escapeHtml(store.city)} · ${icon('star', { size: 12 })} ${store.rating.toFixed(1)}</p>
+          <p class="store-strip__meta">${escapeHtml(store.city)} <span class="dot-sep">·</span> ${ratingInline(store.rating)}</p>
         </div>
         <button type="button" class="btn btn--ghost btn--sm" id="btn-view-store">Ver tienda</button>
-      </section>` : ''}
+      </section>
+      <div class="store-cta-row">
+        <a class="btn btn--whatsapp" href="${whatsappLink(store.phone, `Hola ${store.name}, vi el producto "${product.name}" en RedAuto y quisiera más información.`)}" target="_blank" rel="noopener">${whatsappGlyph({ size: 18 })} Contactar por WhatsApp</a>
+      </div>
+      ${deliveryOptionsRow(store.deliveryOptions)}` : ''}
 
       <section class="detail-block">
         <h2 class="detail-block__title">Cantidad</h2>
@@ -85,6 +93,18 @@ export async function render(container, { segments }) {
           <span class="qty-stepper__value" id="qty-value">1</span>
           <button type="button" class="qty-stepper__btn" data-step="1" aria-label="Aumentar cantidad">${icon('plus', { size: 16 })}</button>
         </div>
+      </section>
+
+      <section class="detail-block">
+        <h2 class="detail-block__title">Reseñas</h2>
+        <div class="reviews-summary">
+          <span class="reviews-summary__score">${product.rating.toFixed(1)}</span>
+          <div>
+            ${miniStarsRow(product.rating)}
+            <p class="reviews-summary__count">${product.reviewsCount} reseñas</p>
+          </div>
+        </div>
+        ${reviews.length ? `<div class="review-list">${reviews.map(reviewRow).join('')}</div>` : ''}
       </section>
     </div>
 
@@ -150,4 +170,16 @@ function bindActions(container, product, store) {
     cartService.addItem(product.id, qty);
     navigate('/checkout');
   });
+}
+
+function reviewRow(r) {
+  return `
+  <article class="review-row">
+    <div class="review-row__head">
+      <span class="review-row__author">${escapeHtml(r.author)}</span>
+      ${miniStarsRow(r.rating)}
+    </div>
+    <p class="review-row__comment">${escapeHtml(r.comment)}</p>
+    <p class="review-row__time">Hace ${r.daysAgo} días</p>
+  </article>`;
 }

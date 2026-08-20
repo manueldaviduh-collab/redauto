@@ -121,7 +121,6 @@ function bindClearChips(container, filters) {
         next.brand = '';
         next.model = '';
         next.year = '';
-        vehicleService.clearPreferred();
       } else {
         next[key] = '';
       }
@@ -235,7 +234,6 @@ function openFiltersSheet(filters) {
           minPrice: data.get('minPrice') || '',
           maxPrice: data.get('maxPrice') || '',
         };
-        if (next.brand) vehicleService.setPreferred({ brand: next.brand, model: next.model, year: next.year });
         closeModal();
         applyFilters(next);
       });

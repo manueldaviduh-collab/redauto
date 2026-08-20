@@ -36,7 +36,11 @@ export async function render(container) {
     return;
   }
 
-  const vehicle = vehicleService.getPreferred();
+  const garage = vehicleService.getGarage();
+  const active = vehicleService.getActive();
+  const garageMeta = garage.length
+    ? `${garage.length} guardado${garage.length === 1 ? '' : 's'}${active ? ` · Activo: ${active.brand} ${active.model}` : ''}`
+    : 'Agrega tu primer vehículo';
 
   container.innerHTML = `
     <header class="top-header"><h1 class="top-header__title">Mi cuenta</h1></header>
@@ -55,13 +59,32 @@ export async function render(container) {
         ${icon('chevronRight', { size: 18 })}
       </a>` : ''}
 
-      <section class="detail-block">
-        <h2 class="detail-block__title">Mi vehículo</h2>
-        <p class="detail-block__text">
-          ${vehicle?.brand ? `${escapeHtml(vehicle.brand)} ${escapeHtml(vehicle.model || '')} ${vehicle.year || ''}` : 'Aún no has guardado un vehículo preferido.'}
-        </p>
-        <a href="#/buscar" class="text-btn">Cambiar vehículo</a>
-      </section>
+      <div class="menu-list">
+        <a href="#/mis-vehiculos" class="menu-row">
+          <span class="menu-row__icon">${icon('car', { size: 18 })}</span>
+          <span class="menu-row__body">
+            <span class="menu-row__label">Mis vehículos</span>
+            <span class="menu-row__meta">${escapeHtml(garageMeta)}</span>
+          </span>
+          ${icon('chevronRight', { size: 16 })}
+        </a>
+        <a href="#/favoritos" class="menu-row">
+          <span class="menu-row__icon">${icon('heart', { size: 18 })}</span>
+          <span class="menu-row__body">
+            <span class="menu-row__label">Favoritos</span>
+            <span class="menu-row__meta">Productos y tiendas guardadas</span>
+          </span>
+          ${icon('chevronRight', { size: 16 })}
+        </a>
+        <a href="#/notificaciones" class="menu-row">
+          <span class="menu-row__icon">${icon('bell', { size: 18 })}</span>
+          <span class="menu-row__body">
+            <span class="menu-row__label">Notificaciones</span>
+            <span class="menu-row__meta">Pedidos, ofertas y novedades</span>
+          </span>
+          ${icon('chevronRight', { size: 16 })}
+        </a>
+      </div>
 
       <section class="detail-block">
         <h2 class="detail-block__title">Mis pedidos</h2>

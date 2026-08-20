@@ -14,6 +14,9 @@ import * as login from './screens/login.js';
 import * as register from './screens/register.js';
 import * as profile from './screens/profile.js';
 import * as seller from './screens/seller.js';
+import * as myVehicles from './screens/myVehicles.js';
+import * as favorites from './screens/favorites.js';
+import * as notifications from './screens/notifications.js';
 
 const ROUTES = [
   { test: (s) => s.length === 0, screen: home, root: '/' },
@@ -27,6 +30,9 @@ const ROUTES = [
   { test: (s) => s[0] === 'registro', screen: register },
   { test: (s) => s[0] === 'perfil', screen: profile, root: '/perfil' },
   { test: (s) => s[0] === 'vendedor', screen: seller },
+  { test: (s) => s[0] === 'mis-vehiculos', screen: myVehicles },
+  { test: (s) => s[0] === 'favoritos', screen: favorites },
+  { test: (s) => s[0] === 'notificaciones', screen: notifications },
 ];
 
 let currentToken = 0;
@@ -52,8 +58,17 @@ async function renderCurrentRoute() {
 
   window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
 
+  // Entrada suave por navegación: la clase se agrega antes de invocar
+  // render() (cubre el primer paint síncrono, típicamente un skeleton) y se
+  // retira en el siguiente frame — o sea, apenas se pinta ese primer
+  // estado, no cuando termina de cargar. Así no se le suma latencia a la
+  // navegación ni se oculta el propio skeleton mientras llegan los datos.
+  screenContent.classList.add('screen-enter');
+  const renderPromise = match.screen.render(screenContent, { path, segments, query });
+  requestAnimationFrame(() => screenContent.classList.remove('screen-enter'));
+
   try {
-    await match.screen.render(screenContent, { path, segments, query });
+    await renderPromise;
   } catch (err) {
     if (token !== currentToken) return;
     console.error('Error al renderizar la pantalla', err);

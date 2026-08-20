@@ -42,10 +42,21 @@ const PATHS = {
   info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><path d="M12 7.8v.1"/>',
   location: '<path d="M12 21s7-6.3 7-11.5a7 7 0 0 0-14 0C5 14.7 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/>',
   menu: '<path d="M4 6.5h16M4 12h16M4 17.5h16"/>',
+  car: '<path d="M3.4 15.8 4.8 10a2.1 2.1 0 0 1 2-1.5h10.4a2.1 2.1 0 0 1 2 1.5l1.4 5.8"/><path d="M3 15.8h18v3.1a1 1 0 0 1-1 1h-1.3a1 1 0 0 1-1-1v-1.1H6.3v1.1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><circle cx="7.2" cy="16.3" r="1.3"/><circle cx="16.8" cy="16.3" r="1.3"/><path d="M5.3 12.3h13.4"/>',
+  trendUp: '<path d="M3 16.5 9 10l4 4 8-8.5"/><path d="M15 5.5h6v6"/>',
   trash: '<path d="M5 7h14"/><path d="M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2"/><path d="M7 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h5.4a1.5 1.5 0 0 0 1.5-1.4L17 7"/>',
 };
 
 export function icon(name, { size = 22, className = '', strokeWidth = 1.8 } = {}) {
   const inner = PATHS[name] || PATHS.info;
   return `<svg class="icon ${className}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
+}
+
+// Glifo de WhatsApp: se dibuja relleno (no trazo) porque a tamaños chicos
+// el logo sólo se reconoce como marca cuando es sólido.
+export function whatsappGlyph({ size = 20, className = '' } = {}) {
+  return `<svg class="icon ${className}" width="${size}" height="${size}" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M16 2.7C8.7 2.7 2.7 8.6 2.7 16c0 2.5.7 4.9 1.9 6.9L2.5 29.5l6.8-2c1.9 1.1 4.1 1.6 6.7 1.6 7.3 0 13.3-5.9 13.3-13.3S23.3 2.7 16 2.7Zm0 24.1c-2.2 0-4.3-.6-6.1-1.7l-.4-.3-4 1.2 1.2-3.9-.3-.4a10.9 10.9 0 0 1-1.7-5.8c0-6 4.9-10.9 10.9-10.9S26.9 10 26.9 16 22 26.8 16 26.8Z"/>
+    <path d="M21.9 18.6c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.3-.5-2.5-1.6-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.7.1-.1.3-.4.5-.5.2-.2.2-.3.3-.5.1-.2.1-.4 0-.5-.1-.2-.7-1.6-1-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.6-.7 1.9-1.3.2-.6.2-1.2.2-1.3-.1-.1-.3-.2-.6-.4Z"/>
+  </svg>`;
 }

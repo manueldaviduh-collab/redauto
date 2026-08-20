@@ -1,10 +1,11 @@
-import { icon } from '../ui/icons.js';
+import { icon, whatsappGlyph } from '../ui/icons.js';
 import {
   backHeaderHtml, verifiedBadge, starRatingBig, productListRow, sectionSkeletonGrid,
-  escapeHtml, bindProductCardEvents, emptyState,
+  escapeHtml, bindProductCardEvents, emptyState, whatsappLink, deliveryOptionsRow,
 } from '../ui/components.js';
 import { storeService } from '../services/storeService.js';
 import { productService } from '../services/productService.js';
+import { favoritesService } from '../services/favoritesService.js';
 import { getCategoryById } from '../data/categories.js';
 import { navigate } from '../nav.js';
 import { showToast } from '../ui/toast.js';
@@ -23,9 +24,14 @@ export async function render(container, { segments }) {
     return;
   }
 
+  const isFavStore = favoritesService.stores.isFavorite(store.id);
+
   container.innerHTML = `
     ${backHeaderHtml(store.name, {
-      rightHtml: `<button type="button" class="icon-btn" id="btn-share-store" aria-label="Compartir tienda">${icon('share', { size: 19 })}</button>`,
+      rightHtml: `
+        <button type="button" class="icon-btn" id="btn-share-store" aria-label="Compartir tienda">${icon('share', { size: 19 })}</button>
+        <button type="button" class="icon-btn ${isFavStore ? 'is-active' : ''}" id="btn-fav-store" aria-label="Guardar tienda en favoritos">${icon('heart', { size: 19 })}</button>
+      `,
     })}
     <div class="store-cover">
       <span class="store-cover__initials">${escapeHtml(store.initials)}</span>
@@ -45,6 +51,11 @@ export async function render(container, { segments }) {
         <div class="stat-card"><span class="stat-card__value">+${store.salesCount}</span><span class="stat-card__label">Ventas</span></div>
       </div>
 
+      <div class="store-info-strip">
+        <span>${icon('clock', { size: 14 })} ${escapeHtml(store.hours)}</span>
+        <span>${icon('trendUp', { size: 14 })} ${escapeHtml(store.responseTime)}</span>
+      </div>
+
       <section class="detail-block">
         <h2 class="detail-block__title">Sobre la tienda</h2>
         <p class="detail-block__text">${escapeHtml(store.about)}</p>
@@ -54,6 +65,7 @@ export async function render(container, { segments }) {
         <h2 class="detail-block__title">Entrega</h2>
         <p class="detail-block__text">${icon('truck', { size: 15 })} ${escapeHtml(store.delivery.shipping)}</p>
         ${store.delivery.pickup ? `<p class="detail-block__text">${icon('mapPin', { size: 15 })} Retiro en tienda disponible en ${escapeHtml(store.address)}</p>` : ''}
+        ${deliveryOptionsRow(store.deliveryOptions)}
       </section>
 
       <section class="detail-block">
@@ -67,9 +79,10 @@ export async function render(container, { segments }) {
       </section>
 
       <div class="store-cta-row">
-        <button type="button" class="btn btn--outline" id="btn-contact-store">${icon('phone', { size: 16 })} Contactar</button>
-        <a href="#store-catalog" class="btn btn--primary">Ver todos los productos</a>
+        <a class="btn btn--whatsapp" href="${whatsappLink(store.phone, `Hola ${store.name}, vi su tienda en RedAuto y quisiera hacer una consulta.`)}" target="_blank" rel="noopener">${whatsappGlyph({ size: 18 })} Contactar por WhatsApp</a>
+        <button type="button" class="icon-btn icon-btn--lg" id="btn-contact-store" aria-label="Llamar a la tienda">${icon('phone', { size: 18 })}</button>
       </div>
+      <a href="#store-catalog" class="btn btn--outline btn--block">Ver todos los productos</a>
 
       <section class="detail-block" id="store-catalog">
         <h2 class="detail-block__title">Catálogo (${escapeHtml(store.name)})</h2>
@@ -81,6 +94,11 @@ export async function render(container, { segments }) {
   bindBack(container);
   container.querySelector('#btn-contact-store')?.addEventListener('click', () => {
     window.location.href = `tel:${store.phone.replace(/\s|-/g, '')}`;
+  });
+  container.querySelector('#btn-fav-store')?.addEventListener('click', (e) => {
+    const isFav = favoritesService.stores.toggle(store.id);
+    e.currentTarget.classList.toggle('is-active', isFav);
+    showToast(isFav ? 'Tienda guardada en favoritos' : 'Tienda quitada de favoritos', 'info');
   });
   container.querySelector('#btn-share-store')?.addEventListener('click', async () => {
     if (navigator.share) {

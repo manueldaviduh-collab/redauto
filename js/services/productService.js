@@ -89,6 +89,16 @@ export const productService = {
   },
 
   compatibilityLabel,
+  matchesVehicle,
+
+  // Deriva un estado de inventario de 3 niveles a partir de availability +
+  // stock: 🟢 disponible, 🟡 últimas unidades (poco stock), 🔴 agotado.
+  stockTier(product) {
+    if (product.availability === 'agotado') return 'agotado';
+    if (product.availability === 'en_stock' && product.stock > 0 && product.stock <= 3) return 'bajas';
+    if (product.availability === 'en_stock') return 'disponible';
+    return 'bajo_pedido';
+  },
 
   // --- Escritura: usada por el panel de vendedor. Persiste sólo en el
   // navegador; contrato listo para POST/PUT /api/stores/:id/products.
