@@ -178,7 +178,7 @@ function openFiltersSheet(filters) {
 
         <fieldset class="filters-form__group">
           <legend>Precio (USD)</legend>
-          <div class="filters-form__row">
+          <div class="filters-form__row filters-form__row--2">
             <input type="number" min="0" name="minPrice" placeholder="Mínimo" value="${filters.minPrice}" aria-label="Precio mínimo" />
             <input type="number" min="0" name="maxPrice" placeholder="Máximo" value="${filters.maxPrice}" aria-label="Precio máximo" />
           </div>

@@ -44,8 +44,20 @@ const DEFS = `
   </linearGradient>
 `;
 
+let instanceCounter = 0;
+
+// Cada ficha de producto en la página inserta su propio <svg><defs>, así que
+// dos correcciones son necesarias: (1) los ids de gradiente se prefijan por
+// instancia para no colisionar cuando hay muchas tarjetas repetidas, y
+// (2) las referencias url(#id) se anclan a la URL absoluta del documento —
+// WebKit no resuelve fragmentos relativos en SVG insertado por innerHTML
+// dentro de un iframe (deja el degradado sin pintar y el dibujo "invisible").
 function wrap(inner, viewBox = '0 0 240 240') {
-  return `<svg class="product-art__svg" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><defs>${DEFS}</defs>${inner}</svg>`;
+  const uid = `pa${instanceCounter++}`;
+  const base = typeof location !== 'undefined' ? location.href.split('#')[0] : '';
+  const scopedDefs = DEFS.replace(/id="pa-/g, `id="${uid}-`);
+  const scopedInner = inner.replace(/url\(#pa-/g, `url(${base}#${uid}-`);
+  return `<svg class="product-art__svg" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true"><defs>${scopedDefs}</defs>${scopedInner}</svg>`;
 }
 
 const ART = {

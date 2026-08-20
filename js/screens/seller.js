@@ -176,7 +176,7 @@ function openProductForm({ user, refresh, product }) {
           <span class="field__label">Nombre del producto</span>
           <input type="text" name="name" required value="${escapeHtml(product?.name || '')}" />
         </label>
-        <div class="filters-form__row">
+        <div class="filters-form__row filters-form__row--2">
           <label class="field">
             <span class="field__label">Categoría</span>
             <select name="categoryId">
@@ -195,7 +195,7 @@ function openProductForm({ user, refresh, product }) {
           <span class="field__label">Marca del repuesto</span>
           <input type="text" name="partBrand" value="${escapeHtml(product?.partBrand || '')}" />
         </label>
-        <div class="filters-form__row">
+        <div class="filters-form__row filters-form__row--2">
           <label class="field">
             <span class="field__label">Precio (USD)</span>
             <input type="number" name="price" min="0" step="0.01" required value="${product?.price ?? ''}" />
