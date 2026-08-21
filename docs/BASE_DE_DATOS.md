@@ -33,7 +33,7 @@ KEY`, no hay que inventarla.
 ### 1.2. Lo que persiste en `localStorage`
 
 Todo bajo el prefijo `redauto_` (ver `js/services/storage.js`). Es
-**por navegador**, no por cuenta — ver `ARQUITECTURA.md` §6 para por qué
+**por navegador**, no por cuenta — ver `ARQUITECTURA.md` §11 para por qué
 esto es el bloqueador #1 antes de cualquier piloto con usuarios reales.
 
 | Clave (`redauto_<clave>`) | Servicio dueño | Contenido |
@@ -224,7 +224,7 @@ store_verification_requests            -- futuro flujo real de KYC (ver ROADMAP)
 No es un solo salto. Orden recomendado, cada uno desbloquea al siguiente:
 
 1. **`products` + `stores` + `product_compatibility`** — es el bloqueador
-   real del piloto (ver `ARQUITECTURA.md` §6): sin esto, lo que un
+   real del piloto (ver `ARQUITECTURA.md` §11): sin esto, lo que un
    vendedor edita en el panel no lo ve ningún comprador fuera de ese mismo
    navegador. `product_overrides` (localStorage) se descarta en este punto
    — ya no hace falta, el backend es la única fuente de verdad.
@@ -241,4 +241,4 @@ No es un solo salto. Orden recomendado, cada uno desbloquea al siguiente:
    datos de muestra (ver `ROADMAP.md`, Etapa 2).
 
 En cada paso, el contrato de `services/*.js` no cambia (ver
-`ARQUITECTURA.md` §7) — sólo cambia qué hay detrás de la función.
+`ARQUITECTURA.md` §12) — sólo cambia qué hay detrás de la función.

@@ -34,10 +34,10 @@ estático y funciona.
 - El re-render es manual (`container.innerHTML = ...` + re-bind de
   eventos) — sin diffing, así que hay que ser disciplinado con el
   `screen.render()` re-escribiendo todo el contenedor en vez de mutar
-  nodos sueltos (ver `ARQUITECTURA.md` §4).
+  nodos sueltos (ver `ARQUITECTURA.md` §5).
 - Sin este framework, tampoco hay su ecosistema de testing (Testing
   Library, etc.) gratis — la deuda de tests automatizados (ver
-  `ARQUITECTURA.md` §9) hay que pagarla con herramientas más manuales
+  `ARQUITECTURA.md` §15) hay que pagarla con herramientas más manuales
   (Playwright directo).
 
 **Cuándo reconsiderar:** si el número de pantallas con estado interno
@@ -55,7 +55,7 @@ framework la imponga.
 `data/products.js` directo y ya.
 
 **Decisión:** Ninguna pantalla toca `data/*.js` para nada que tenga
-estado (todo pasa por `services/*.js`). Ver `ARQUITECTURA.md` §2.
+estado (todo pasa por `services/*.js`). Ver `ARQUITECTURA.md` §3.
 
 **Alternativas consideradas:**
 - *Pantallas leyendo `data/` directo.* Menos código hoy, pero significa
@@ -64,7 +64,7 @@ estado (todo pasa por `services/*.js`). Ver `ARQUITECTURA.md` §2.
 
 **Consecuencias:** una capa más de indirección para features simples
 (un extra `import` y una función intermedia), a cambio de que la migración
-a backend sea localizada (ver `ARQUITECTURA.md` §7).
+a backend sea localizada (ver `ARQUITECTURA.md` §12).
 
 **Cuándo reconsiderar:** nunca, mientras el proyecto tenga más de una
 pantalla — es la decisión que más protege el trabajo futuro y su costo es
@@ -88,7 +88,7 @@ llamado directo desde otro archivo.
   esta primera fase de diseño de UI/UX* — el objetivo era iterar rápido el
   producto sin esperar infraestructura. Esto **no** significa que sea
   aceptable lanzar el piloto real así (ver el bloqueador #1 en
-  `ARQUITECTURA.md` §6 y la Etapa 0/1 de `ROADMAP.md`).
+  `ARQUITECTURA.md` §11 y la Etapa 0/1 de `ROADMAP.md`).
 
 **Consecuencias:** cero infraestructura para desarrollar y demostrar la
 UI. El costo real: los datos son por navegador, no por cuenta — un
@@ -130,7 +130,7 @@ de una pantalla debe usar el mismo patrón, no un `href="#algo"` plano.
 **Cuándo reconsiderar:** al mover el proyecto a un servidor/CDN real con
 control de configuración de rutas (Etapa 1 del roadmap) — ahí sí conviene
 pasar a History API por SEO y URLs limpias, ver el límite de SEO en
-`ARQUITECTURA.md` §6.
+`ARQUITECTURA.md` §11.
 
 ---
 

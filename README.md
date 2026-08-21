@@ -14,9 +14,11 @@ estado. La documentación de arquitectura completa vive en `docs/`:
 - [`docs/PRINCIPIOS.md`](docs/PRINCIPIOS.md) — los principios de producto e
   ingeniería que cualquier decisión nueva debe respetar (o romper a
   propósito, no por accidente).
-- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — capas, mapa de módulos,
-  qué se rompe primero si esto crece, y cómo se conecta a un backend real
-  sin reescribir pantallas.
+- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — el documento central:
+  stack tecnológico, estructura del proyecto, capas, autenticación,
+  almacenamiento de imágenes, comunicación frontend↔backend, qué se rompe
+  primero si esto crece, y cómo se conecta a un backend real sin
+  reescribir pantallas.
 - [`docs/BASE_DE_DATOS.md`](docs/BASE_DE_DATOS.md) — qué hay hoy en
   `localStorage`, el esquema relacional objetivo, y el plan de migración.
 - [`docs/DECISIONES.md`](docs/DECISIONES.md) — por qué se eligió cada
@@ -29,7 +31,7 @@ estado. La documentación de arquitectura completa vive en `docs/`:
 > en `localStorage`, es decir, **por navegador, no por cuenta**. Un
 > vendedor que edita su inventario en su teléfono, hoy, no lo ve ningún
 > comprador en el suyo. Es el primer bloqueador documentado en
-> `docs/ARQUITECTURA.md` §6 y el primer paso de `docs/ROADMAP.md`
+> `docs/ARQUITECTURA.md` §11 y el primer paso de `docs/ROADMAP.md`
 > (Etapa 0) — resolverlo (backend real mínimo para productos/tiendas/
 > pedidos) es requisito antes de un piloto con usuarios reales, no una
 > mejora posterior.

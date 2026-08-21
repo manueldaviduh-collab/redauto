@@ -23,7 +23,7 @@ construir nada más:
 `BASE_DE_DATOS.md` §4, paso 1–2. Con `localStorage` como está hoy, el
 catálogo que el papá del fundador edite en su teléfono **no lo va a ver
 ningún comprador en el suyo**. Este es el bloqueador #1 documentado en
-`ARQUITECTURA.md` §6, y hay que resolverlo antes de la Etapa 0, no
+`ARQUITECTURA.md` §11, y hay que resolverlo antes de la Etapa 0, no
 durante.
 
 **Alcance de esta etapa:**
@@ -68,7 +68,7 @@ personalmente, sin que el fundador tenga que cargar cada catálogo a mano.
 - Historial de pedidos real, visible desde cualquier dispositivo.
 - Tests de humo automatizados (Playwright) para el flujo crítico: login →
   buscar → agregar al carrito → checkout, y alta de producto en el panel
-  de vendedor — ver `ARQUITECTURA.md` §9. A partir de aquí hay más de un
+  de vendedor — ver `ARQUITECTURA.md` §15. A partir de aquí hay más de un
   cambio por semana tocando el mismo código; sin esto, algo se rompe sin
   que nadie lo note hasta que un usuario real se queja.
 - Verificación de tienda sigue siendo manual, pero con un flujo dentro del
@@ -114,7 +114,7 @@ recompensa (ver más abajo — se preparan conceptualmente, no se construyen
 todavía).
 
 **Señal de pasar a la Etapa 3:** el catálogo y el volumen de pedidos ya
-estiran los límites documentados en `ARQUITECTURA.md` §6 (búsqueda con
+estiran los límites documentados en `ARQUITECTURA.md` §11 (búsqueda con
 miles de productos, necesidad real de pago automatizado por volumen).
 
 ## Etapa 3 — Escala: pagos reales, logística, crecimiento
@@ -134,7 +134,7 @@ todo junto):**
 - **Envíos/logística real** — integración con transportistas o cálculo de
   tarifa real, reemplazando "A calcular con la tienda".
 - **Búsqueda a escala**, si el catálogo lo amerita (ver
-  `ARQUITECTURA.md` §8: Postgres con índices alcanza hasta miles de
+  `ARQUITECTURA.md` §14: Postgres con índices alcanza hasta miles de
   productos; recién a partir de ahí se evalúa un motor dedicado).
 - **Multi-ciudad / multi-país**, si el modelo ya probado en Venezuela se
   quiere replicar.
