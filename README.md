@@ -6,6 +6,34 @@ confianza; el vendedor gestiona su catálogo desde un panel propio. Este MVP
 no incluye talleres, mecánicos ni reservas de servicio: el foco es 100%
 repuestos + tiendas verificadas.
 
+## Documentación técnica
+
+Este README cubre lo esencial para correr el proyecto y entender su
+estado. La documentación de arquitectura completa vive en `docs/`:
+
+- [`docs/PRINCIPIOS.md`](docs/PRINCIPIOS.md) — los principios de producto e
+  ingeniería que cualquier decisión nueva debe respetar (o romper a
+  propósito, no por accidente).
+- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — capas, mapa de módulos,
+  qué se rompe primero si esto crece, y cómo se conecta a un backend real
+  sin reescribir pantallas.
+- [`docs/BASE_DE_DATOS.md`](docs/BASE_DE_DATOS.md) — qué hay hoy en
+  `localStorage`, el esquema relacional objetivo, y el plan de migración.
+- [`docs/DECISIONES.md`](docs/DECISIONES.md) — por qué se eligió cada
+  pieza (sin framework, sin backend todavía, hash routing, etc.), qué
+  alternativas se consideraron y cuándo conviene reconsiderar cada una.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — crecimiento por etapas, empezando
+  por un piloto cerrado con tiendas reales.
+
+> **Aviso técnico antes de usar esto con una tienda real:** todo persiste
+> en `localStorage`, es decir, **por navegador, no por cuenta**. Un
+> vendedor que edita su inventario en su teléfono, hoy, no lo ve ningún
+> comprador en el suyo. Es el primer bloqueador documentado en
+> `docs/ARQUITECTURA.md` §6 y el primer paso de `docs/ROADMAP.md`
+> (Etapa 0) — resolverlo (backend real mínimo para productos/tiendas/
+> pedidos) es requisito antes de un piloto con usuarios reales, no una
+> mejora posterior.
+
 ## Cómo ejecutar el proyecto
 
 Es una app estática (HTML/CSS/JS con módulos ES nativos, sin build step).
@@ -161,6 +189,10 @@ llamada a un backend real, no debería tocar ninguna pantalla.
 - `sellerService.getDashboard()` es el único punto de entrada para las
   métricas del panel — puede pasar a leer de `/api/stores/:id/dashboard` sin
   tocar `seller.js`.
+
+El esquema relacional objetivo (tablas, relaciones, índices) para cuando
+todo esto se mueva a un backend real está en
+[`docs/BASE_DE_DATOS.md`](docs/BASE_DE_DATOS.md).
 
 ## Notas de diseño
 
