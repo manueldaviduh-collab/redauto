@@ -133,7 +133,7 @@ export function productCard(product, store) {
       </div>
       ${store ? `<p class="product-card__store">${escapeHtml(store.name)} ${icon('shieldCheck', { size: 12, className: 'store-check' })}</p>` : ''}
     </div>
-    <button type="button" class="btn-icon-primary product-card__add" data-action="add-to-cart" aria-label="Agregar al carrito">${icon('cart', { size: 18 })}</button>
+    <button type="button" class="btn-icon-primary product-card__add" data-action="add-to-cart" aria-label="Agregar al carrito" ${product.availability === 'agotado' ? 'disabled' : ''}>${icon('cart', { size: 18 })}</button>
   </article>`;
 }
 
@@ -168,7 +168,7 @@ export function productListRow(product, store) {
     </div>
     <div class="product-row__actions">
       <button type="button" class="icon-btn ${isFav ? 'is-active' : ''}" data-action="favorite" aria-label="Guardar en favoritos">${icon('heart', { size: 16 })}</button>
-      <button type="button" class="btn-icon-primary" data-action="add-to-cart" aria-label="Agregar al carrito">${icon('cart', { size: 17 })}</button>
+      <button type="button" class="btn-icon-primary" data-action="add-to-cart" aria-label="Agregar al carrito" ${product.availability === 'agotado' ? 'disabled' : ''}>${icon('cart', { size: 17 })}</button>
     </div>
   </article>`;
 }
