@@ -62,7 +62,7 @@ js/
     notificationService.js   Centro de notificaciones (leído/no leído)
   ui/                   Presentación reutilizable
     icons.js, productArt.js (ilustraciones de producto), components.js,
-    toast.js, modal.js
+    toast.js, modal.js, chat.js ("Preguntar a la tienda")
   screens/              Una pantalla = una función render(container, params)
     home.js, search.js, product.js, stores.js, storeDetail.js,
     cart.js, checkout.js, login.js, register.js, profile.js, seller.js,
@@ -95,23 +95,38 @@ llamada a un backend real, no debería tocar ninguna pantalla.
 5. **Detalle de producto** — imagen tipo ficha de marketplace (fondo blanco),
    precio, estado de inventario en 3 niveles (🟢 Disponible / 🟡 Últimas
    unidades / 🔴 Agotado), opciones de entrega, descripción, compatibilidad,
-   tienda vendedora con badge de verificación, botón de WhatsApp, selector de
-   cantidad, agregar al carrito, comprar ahora y reseñas de muestra.
+   tienda vendedora con badge de verificación, botón **"Preguntar a la
+   tienda"** (chat, ver abajo), selector de cantidad, agregar al carrito,
+   comprar ahora y reseñas de muestra.
 6. **Tiendas verificadas** — listado con búsqueda por nombre/ciudad y perfil
    de tienda (cobertura, calificación, ventas, horario, tiempo de respuesta,
-   entrega/retiro, botón de WhatsApp, catálogo completo, favorito ⭐).
-7. **Favoritos** — productos (❤️) y tiendas (⭐) guardados, con pantalla propia
+   entrega/retiro, catálogo completo, favorito ⭐), con "Ver catálogo" como
+   CTA principal y el chat como vía preferida de contacto.
+7. **Chat "Preguntar a la tienda"** — resuelve la duda que frena la compra sin
+   sacar al usuario de RedAuto: preguntas rápidas ("¿Le sirve a mi
+   [vehículo]?", "¿Tienen disponible?", "¿Es original?", "¿Cuánto tarda?",
+   "¿Puedo retirarlo hoy?") con respuestas generadas a partir de los datos
+   reales del producto/tienda (compatibilidad, stock, tipo, entrega), más un
+   campo de texto libre. Resuelta la duda, aparece el CTA natural: **Agregar
+   al carrito** / **Comprar ahora** (o **Ver catálogo** si el chat es sobre la
+   tienda en general). WhatsApp y llamada telefónica siguen disponibles, pero
+   como opción secundaria discreta debajo del chat — nunca como CTA
+   principal, para no sacar al comprador de la plataforma.
+8. **Favoritos** — productos (❤️) y tiendas (⭐) guardados, con pantalla propia
    por pestañas accesible desde Perfil.
-8. **Centro de notificaciones** — pantalla con pedidos, ofertas y novedades,
+9. **Centro de notificaciones** — pantalla con pedidos, ofertas y novedades,
    estado leído/no leído persistido.
-9. **Carrito y checkout** — agregar/quitar/actualizar cantidades, persistido
-   en `localStorage`; checkout exige sesión iniciada, pide datos de entrega y
-   crea un pedido en estado explícito **"Pendiente de pago (MVP)"** — no se
-   simula ningún pago exitoso.
-10. **Cuenta** — login/registro con validación de campos, sesión demo
+10. **Carrito y checkout** — agregar/quitar/actualizar cantidades, persistido
+    en `localStorage`; CTA del carrito es **"Continuar al pago"** y el de
+    checkout es específico, **"Pagar $XX.XX"** (nunca un "Continuar"
+    ambiguo). Checkout exige sesión iniciada, pide datos de entrega y crea un
+    pedido en estado explícito **"Pendiente de pago (MVP)"** — no se simula
+    ningún pago exitoso; una nota de "Protección de compra RedAuto" refuerza
+    que el pedido y el historial quedan dentro de la plataforma.
+11. **Cuenta** — login/registro con validación de campos, sesión demo
     persistida, perfil con historial de pedidos y accesos a vehículos/
     favoritos/notificaciones.
-11. **Panel de vendedor** — sólo accesible con una cuenta de rol `vendedor`:
+12. **Panel de vendedor** — sólo accesible con una cuenta de rol `vendedor`:
     resumen de ventas (KPIs calculados en vivo), pedidos de la tienda,
     inventario con alta/edición de productos (persistido en `localStorage`) y
     estado de verificación.
@@ -129,8 +144,10 @@ llamada a un backend real, no debería tocar ninguna pantalla.
   validación real.
 - Notificaciones y reseñas: datos de muestra fijos (no hay backend de
   notificaciones push ni sistema de reseñas de compradores reales todavía).
-- WhatsApp: el botón abre `wa.me` con un mensaje prellenado hacia el número
-  registrado de la tienda — no hay mensajería dentro de la app.
+- Chat "Preguntar a la tienda": las respuestas se generan en el cliente a
+  partir de los datos reales del producto/tienda (no hay mensajería real ni
+  un vendedor humano respondiendo). WhatsApp/llamada quedan como respaldo
+  secundario y usan `wa.me`/`tel:` reales.
 
 **Listo para conectar a backend sin rediseñar pantallas:**
 - Cada `services/*.js` expone funciones `async` con un contrato estable
@@ -162,3 +179,9 @@ llamada a un backend real, no debería tocar ninguna pantalla.
   marcas de agua— como alternativa honesta a una foto de estudio real.
 - El logo es el ícono de marca provisto por el usuario (recorte del archivo
   original en `assets/`), no una reinterpretación.
+- **Principio de conversión:** toda la experiencia está pensada para que la
+  compra se complete dentro de RedAuto (marketplace, no directorio). El CTA
+  principal en producto y carrito siempre es Agregar al carrito/Comprar
+  ahora/Continuar al pago/Pagar; el chat resuelve dudas sin sacar al usuario
+  de la app; WhatsApp y llamada existen pero como opción secundaria y
+  discreta, nunca como CTA principal.

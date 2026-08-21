@@ -45,6 +45,7 @@ const PATHS = {
   car: '<path d="M3.4 15.8 4.8 10a2.1 2.1 0 0 1 2-1.5h10.4a2.1 2.1 0 0 1 2 1.5l1.4 5.8"/><path d="M3 15.8h18v3.1a1 1 0 0 1-1 1h-1.3a1 1 0 0 1-1-1v-1.1H6.3v1.1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><circle cx="7.2" cy="16.3" r="1.3"/><circle cx="16.8" cy="16.3" r="1.3"/><path d="M5.3 12.3h13.4"/>',
   trendUp: '<path d="M3 16.5 9 10l4 4 8-8.5"/><path d="M15 5.5h6v6"/>',
   trash: '<path d="M5 7h14"/><path d="M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2"/><path d="M7 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h5.4a1.5 1.5 0 0 0 1.5-1.4L17 7"/>',
+  message: '<path d="M4 5.5h16a1 1 0 0 1 1 1V16a1 1 0 0 1-1 1H9l-4.5 4V17H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z"/><path d="M8 10h8M8 13h5"/>',
 };
 
 export function icon(name, { size = 22, className = '', strokeWidth = 1.8 } = {}) {

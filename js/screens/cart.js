@@ -56,7 +56,7 @@ async function load(container) {
       <div class="summary-row summary-row--muted"><span>Envío</span><span>Se calcula al finalizar</span></div>
       <div class="summary-row summary-row--total"><span>Total estimado</span><span>${formatPrice(subtotal)}</span></div>
     </div>
-    <button type="button" class="btn btn--primary btn--block" id="btn-checkout">Finalizar compra</button>
+    <button type="button" class="btn btn--primary btn--block" id="btn-checkout">Continuar al pago</button>
   `;
 
   body.querySelectorAll('[data-step]').forEach((btn) => {

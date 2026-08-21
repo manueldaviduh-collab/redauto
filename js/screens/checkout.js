@@ -69,13 +69,14 @@ export async function render(container) {
       </section>
 
       <section class="detail-block payment-mvp">
-        <h2 class="detail-block__title">${icon('info', { size: 16 })} Pago — próximamente</h2>
-        <p class="detail-block__text">RedAuto todavía no procesa pagos en línea. Al confirmar, tu pedido queda registrado como <strong>pendiente de pago</strong> y la tienda se pondrá en contacto para coordinar el cobro y la entrega.</p>
+        <h2 class="detail-block__title">${icon('info', { size: 16 })} Pago en línea — próximamente</h2>
+        <p class="detail-block__text">Tu pedido queda registrado dentro de RedAuto como <strong>pendiente de pago</strong> y la tienda se pondrá en contacto para coordinar el cobro y la entrega. Aún no procesamos el cobro en línea, pero tu pedido, tu historial y el seguimiento quedan protegidos aquí en la plataforma.</p>
       </section>
     </div>
 
     <div class="sticky-actions sticky-actions--single">
-      <button type="button" class="btn btn--primary btn--block" id="btn-confirm-order">Confirmar pedido (modo demo)</button>
+      <button type="button" class="btn btn--primary btn--block" id="btn-confirm-order">Pagar ${formatPrice(subtotal)}</button>
+      <p class="trust-note">${icon('shieldCheck', { size: 14 })} Protección de compra RedAuto — tu pedido y tu historial quedan en la plataforma</p>
     </div>
   `;
 
@@ -92,13 +93,14 @@ export async function render(container) {
       address: data.get('address'),
     };
     const btn = container.querySelector('#btn-confirm-order');
+    const originalLabel = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Confirmando…';
+    btn.textContent = 'Procesando…';
     const result = await orderService.checkout(user.id, shippingInfo);
     if (!result.ok) {
       showToast(result.error, 'error');
       btn.disabled = false;
-      btn.textContent = 'Confirmar pedido (modo demo)';
+      btn.textContent = originalLabel;
       return;
     }
     renderConfirmation(container, result.order);

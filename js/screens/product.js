@@ -10,6 +10,7 @@ import { favoritesService } from '../services/favoritesService.js';
 import { sampleReviewsFor } from '../data/reviews.js';
 import { showToast } from '../ui/toast.js';
 import { navigate } from '../nav.js';
+import { openStoreChat } from '../ui/chat.js';
 
 export async function render(container, { segments }) {
   const id = segments[1];
@@ -81,8 +82,11 @@ export async function render(container, { segments }) {
         </div>
         <button type="button" class="btn btn--ghost btn--sm" id="btn-view-store">Ver tienda</button>
       </section>
-      <div class="store-cta-row">
-        <a class="btn btn--whatsapp" href="${whatsappLink(store.phone, `Hola ${store.name}, vi el producto "${product.name}" en RedAuto y quisiera más información.`)}" target="_blank" rel="noopener">${whatsappGlyph({ size: 18 })} Contactar por WhatsApp</a>
+      <button type="button" class="btn btn--outline btn--block" id="btn-ask-store">${icon('message', { size: 16 })} Preguntar a la tienda</button>
+      <div class="contact-secondary-row">
+        <span>¿Prefieres hablar directo?</span>
+        <a href="${whatsappLink(store.phone, `Hola ${store.name}, vi el producto "${product.name}" en RedAuto y quisiera más información.`)}" target="_blank" rel="noopener">${whatsappGlyph({ size: 13 })} WhatsApp</a>
+        <a href="tel:${store.phone.replace(/\s|-/g, '')}">${icon('phone', { size: 13 })} Llamar</a>
       </div>
       ${deliveryOptionsRow(store.deliveryOptions)}` : ''}
 
@@ -159,6 +163,10 @@ function bindActions(container, product, store) {
   container.querySelector('#btn-view-store')?.addEventListener('click', (e) => {
     e.stopPropagation();
     goToStore();
+  });
+
+  container.querySelector('#btn-ask-store')?.addEventListener('click', () => {
+    if (store) openStoreChat({ store, product });
   });
 
   container.querySelector('#btn-add-cart')?.addEventListener('click', () => {

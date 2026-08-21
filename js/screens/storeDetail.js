@@ -9,6 +9,7 @@ import { favoritesService } from '../services/favoritesService.js';
 import { getCategoryById } from '../data/categories.js';
 import { navigate } from '../nav.js';
 import { showToast } from '../ui/toast.js';
+import { openStoreChat } from '../ui/chat.js';
 
 export async function render(container, { segments }) {
   const id = segments[1];
@@ -78,11 +79,13 @@ export async function render(container, { segments }) {
         </div>
       </section>
 
-      <div class="store-cta-row">
-        <a class="btn btn--whatsapp" href="${whatsappLink(store.phone, `Hola ${store.name}, vi su tienda en RedAuto y quisiera hacer una consulta.`)}" target="_blank" rel="noopener">${whatsappGlyph({ size: 18 })} Contactar por WhatsApp</a>
-        <button type="button" class="icon-btn icon-btn--lg" id="btn-contact-store" aria-label="Llamar a la tienda">${icon('phone', { size: 18 })}</button>
+      <button type="button" class="btn btn--primary btn--block" data-scroll-to="store-catalog">Ver catálogo</button>
+      <button type="button" class="btn btn--outline btn--block" id="btn-ask-store">${icon('message', { size: 16 })} Preguntar a la tienda</button>
+      <div class="contact-secondary-row">
+        <span>¿Prefieres hablar directo?</span>
+        <a href="${whatsappLink(store.phone, `Hola ${store.name}, vi su tienda en RedAuto y quisiera hacer una consulta.`)}" target="_blank" rel="noopener">${whatsappGlyph({ size: 13 })} WhatsApp</a>
+        <a href="tel:${store.phone.replace(/\s|-/g, '')}">${icon('phone', { size: 13 })} Llamar</a>
       </div>
-      <a href="#store-catalog" class="btn btn--outline btn--block">Ver todos los productos</a>
 
       <section class="detail-block" id="store-catalog">
         <h2 class="detail-block__title">Catálogo (${escapeHtml(store.name)})</h2>
@@ -92,9 +95,10 @@ export async function render(container, { segments }) {
   `;
 
   bindBack(container);
-  container.querySelector('#btn-contact-store')?.addEventListener('click', () => {
-    window.location.href = `tel:${store.phone.replace(/\s|-/g, '')}`;
+  container.querySelector('[data-scroll-to]')?.addEventListener('click', (e) => {
+    document.getElementById(e.currentTarget.dataset.scrollTo)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
+  container.querySelector('#btn-ask-store')?.addEventListener('click', () => openStoreChat({ store }));
   container.querySelector('#btn-fav-store')?.addEventListener('click', (e) => {
     const isFav = favoritesService.stores.toggle(store.id);
     e.currentTarget.classList.toggle('is-active', isFav);
