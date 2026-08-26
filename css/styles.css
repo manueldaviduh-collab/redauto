@@ -874,6 +874,14 @@ img, svg { display: block; max-width: 100%; }
 .field__password input { flex: 1; padding-right: 46px; }
 .field__password .icon-btn { position: absolute; right: 4px; width: 34px; height: 34px; background: none; border: none; }
 .field-error { color: #ff7a76; font-size: 12.5px; }
+.checkbox-field {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  padding: 12px; font-size: 13.5px; color: var(--color-text);
+}
+.checkbox-field input[type="checkbox"] {
+  width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--color-red);
+}
 
 .confirmation-card { text-align: center; padding: 30px 16px; }
 .confirmation-card__icon {

@@ -1,29 +1,7 @@
-// Cuentas y pedidos de demostración. El MVP no tiene backend de autenticación
-// real: authService valida contra este arreglo (+ lo registrado localmente).
-// Sustituir por llamadas a un servicio de auth (OAuth, JWT, etc.) es un
-// cambio aislado a js/services/authService.js.
-export const demoUsers = [
-  {
-    id: 'u1',
-    role: 'comprador',
-    name: 'Manuel Duarte',
-    email: 'demo@redauto.com',
-    password: 'demo123',
-    phone: '+58 412-1234567',
-    city: 'Caracas',
-  },
-  {
-    id: 'u2',
-    role: 'vendedor',
-    name: 'AutoPartes 24',
-    email: 'tienda@redauto.com',
-    password: 'demo123',
-    phone: '+58 414-7654321',
-    city: 'Caracas',
-    storeId: 'st1',
-  },
-];
-
+// Pedidos de muestra para el panel de vendedor y "Mis pedidos" — el
+// checkout real (con auth real de server/) es un paso posterior, ver
+// docs/ROADMAP.md. authService ya NO usa este archivo: las cuentas se
+// validan contra el backend real (js/services/authService.js).
 export const demoOrders = [
   {
     id: 'ord-1001',

@@ -19,12 +19,16 @@ construir nada más:
    compradores igual terminan escribiendo por WhatsApp?
 
 **Requisito técnico antes de arrancar (no es opcional):** mover
-`products`, `stores` y `orders` a un backend real compartido — ver
-`BASE_DE_DATOS.md` §4, paso 1–2. Con `localStorage` como está hoy, el
-catálogo que el papá del fundador edite en su teléfono **no lo va a ver
-ningún comprador en el suyo**. Este es el bloqueador #1 documentado en
-`ARQUITECTURA.md` §11, y hay que resolverlo antes de la Etapa 0, no
-durante.
+`products`, `stores` y las cuentas de usuario a un backend real
+compartido — **✅ ya resuelto**, ver `server/` y `ARQUITECTURA.md` §7–§8.
+Con `localStorage` como estaba antes, el catálogo que el papá del
+fundador editara en su teléfono no lo hubiera visto ningún comprador en
+el suyo; ese bloqueador #1 (`ARQUITECTURA.md` §11) ya no aplica al
+catálogo. Sigue aplicando a `orders`: el historial de pedidos todavía es
+por navegador (ver `BASE_DE_DATOS.md` §6, paso 1) — no bloquea que el
+papá del fundador cargue su tienda y sus productos reales hoy mismo, pero
+sí falta antes de que el flujo de compra completo (no sólo el catálogo)
+esté centralizado.
 
 **Alcance de esta etapa:**
 - Un puñado de tiendas reales (las del papá + quizás 1–2 más), cargadas a
@@ -55,25 +59,45 @@ más tiendas, no una pantalla nueva.
 **Objetivo:** que el producto sostenga tiendas que el fundador no conoce
 personalmente, sin que el fundador tenga que cargar cada catálogo a mano.
 
-**Qué se construye:**
-- API real (recomendado: empezar simple — Supabase u otra plataforma que
-  dé Postgres + auth + storage ya integrados, para no reconstruir auth
-  desde cero; alternativa igual de válida: backend propio en Node.js +
-  Postgres si el equipo prefiere control total desde ya — ver
-  `DECISIONES.md`, ADR-007).
-- El panel de vendedor pasa a escribir contra ese backend (adiós
-  `product_overrides` en `localStorage`).
-- Sesión de usuario real (adiós `session`/`users_extra` en
-  `localStorage`) — login persiste entre dispositivos.
-- Historial de pedidos real, visible desde cualquier dispositivo.
+**Ya construido (arrancado, no sólo planeado — ver `server/README.md` y
+`ARQUITECTURA.md` §7–§13):**
+- ✅ API real propia: Node.js + Express + PostgreSQL (`server/`) — se optó
+  por backend propio en vez de Supabase para tener control total del
+  esquema desde el piloto (ver `DECISIONES.md`, ADR-007).
+- ✅ Registro de cuenta real (comprador o vendedor + su tienda en la misma
+  transacción), con contraseñas hasheadas (`bcrypt`) y sesión firmada
+  (JWT) — adiós `session`/`users_extra` en `localStorage`, login ya
+  persiste entre dispositivos.
+- ✅ El panel de vendedor escribe contra ese backend (adiós
+  `product_overrides` en `localStorage`); toda escritura de producto
+  verifica server-side que la tienda pertenezca al vendedor autenticado.
+- ✅ Lectura pública de tiendas/productos reales desde ese backend,
+  mezclada con el catálogo de demostración para que la navegación de
+  compra nunca se vea vacía si el backend no responde (ver
+  `ARQUITECTURA.md` §10).
+- ✅ Cero datos ficticios sembrados: la base arranca sólo con la taxonomía
+  de categorías; toda tienda/producto/usuario se crea vía el flujo real de
+  registro, nunca por script de siembra.
+
+**Qué falta todavía dentro de esta etapa:**
+- Historial de pedidos real (`orders`/`order_items` en Postgres) — hoy el
+  carrito y "Mis pedidos" siguen en `localStorage`/datos de muestra (ver
+  `BASE_DE_DATOS.md` §6, paso 1).
 - Tests de humo automatizados (Playwright) para el flujo crítico: login →
   buscar → agregar al carrito → checkout, y alta de producto en el panel
-  de vendedor — ver `ARQUITECTURA.md` §15. A partir de aquí hay más de un
-  cambio por semana tocando el mismo código; sin esto, algo se rompe sin
-  que nadie lo note hasta que un usuario real se queja.
-- Verificación de tienda sigue siendo manual, pero con un flujo dentro del
-  panel (formulario + `store_verification_requests`), no por WhatsApp con
-  el fundador.
+  de vendedor — ver `ARQUITECTURA.md` §15. Hoy la verificación de este
+  backend se hizo con scripts de Playwright puntuales durante el
+  desarrollo, no persistidos como suite en el repo. A partir de aquí hay
+  más de un cambio por semana tocando el mismo código; sin una suite
+  real, algo se rompe sin que nadie lo note hasta que un usuario real se
+  queja.
+- Verificación de tienda sigue siendo automática al registrarse (no
+  manual ni con flujo de revisión todavía) — ver
+  `store_verification_requests` en `BASE_DE_DATOS.md` §4.
+- Desplegar `server/` en algún lugar alcanzable por usuarios reales fuera
+  de esta sandbox de desarrollo (ver `server/README.md`, sección de
+  despliegue) — hoy corre local/efímero, el código ya está listo para
+  desplegarse tal cual.
 
 **Explícitamente fuera de esta etapa:** pasarela de pago automatizada
 todavía (pago sigue coordinándose y confirmándose a mano — ahora al menos

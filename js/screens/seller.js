@@ -39,7 +39,25 @@ export async function render(container) {
   container.innerHTML = `${backHeaderHtml('Panel de vendedor')}<div class="screen-pad"><div class="skeleton skeleton--hero"></div></div>`;
   bindBack(container);
 
-  const dashboard = await sellerService.getDashboard(user.storeId);
+  let dashboard;
+  try {
+    dashboard = await sellerService.getDashboard(user.storeId);
+  } catch (err) {
+    container.innerHTML = `
+      ${backHeaderHtml('Panel de vendedor')}
+      <div class="screen-pad">
+        ${emptyState({
+          iconName: 'info',
+          title: 'No se pudo conectar con el servidor',
+          message: err?.message || 'Verifica tu conexión o que el backend de RedAuto esté encendido, y vuelve a intentar.',
+          actionLabel: 'Reintentar',
+          actionHref: '#/vendedor',
+        })}
+      </div>
+    `;
+    bindBack(container);
+    return;
+  }
   let activeTab = 'resumen';
 
   container.innerHTML = `
@@ -100,7 +118,7 @@ function renderResumen({ kpis }) {
     <div class="kpi-card"><span class="kpi-card__value">${kpis.productsCount}</span><span class="kpi-card__label">Productos</span></div>
     <div class="kpi-card"><span class="kpi-card__value">${ratingInline(kpis.rating)}</span><span class="kpi-card__label">Calificación</span></div>
   </div>
-  <p class="detail-block__text seller-note">${icon('info', { size: 14 })} Estas métricas se calculan localmente a partir del catálogo y los pedidos demo. Un backend real las serviría desde /api/stores/:id/dashboard.</p>
+  <p class="detail-block__text seller-note">${icon('info', { size: 14 })} Tu inventario y tu tienda son datos reales guardados en el servidor. Los pedidos todavía se calculan sobre datos de ejemplo — el checkout real de compradores es un paso posterior (ver docs/ROADMAP.md).</p>
   `;
 }
 
@@ -236,14 +254,21 @@ function openProductForm({ user, refresh, product }) {
           sku: product?.sku || `LOC-${Date.now().toString().slice(-6)}`,
           compatibility: product?.compatibility || [{ brand: 'Universal', model: 'Todas', yearFrom: 2000, yearTo: 2026 }],
         };
-        if (isEdit) {
-          await sellerService.updateProduct(product.id, payload);
-        } else {
-          await sellerService.addProduct(user.storeId, payload);
+        const submitBtn = body.querySelector('#product-form button[type="submit"]');
+        submitBtn.disabled = true;
+        try {
+          if (isEdit) {
+            await sellerService.updateProduct(product.id, payload);
+          } else {
+            await sellerService.addProduct(user.storeId, payload);
+          }
+          closeModal();
+          showToast(isEdit ? 'Producto actualizado' : 'Producto agregado', 'success');
+          refresh();
+        } catch (err) {
+          submitBtn.disabled = false;
+          showToast(err?.message || 'No se pudo guardar el producto.', 'error');
         }
-        closeModal();
-        showToast(isEdit ? 'Producto actualizado' : 'Producto agregado', 'success');
-        refresh();
       });
     },
   });

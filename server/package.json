@@ -1,0 +1,20 @@
+{
+  "name": "redauto-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend real de RedAuto: autenticación y catálogo de productos, sin datos de demostración.",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "psql \"$DATABASE_URL\" -f src/schema.sql"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.13.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5"
+  }
+}

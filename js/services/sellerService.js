@@ -1,15 +1,18 @@
-import { productService } from './productService.js';
+import { storeService } from './storeService.js';
 import { orderService } from './orderService.js';
-import { getStoreById } from '../data/stores.js';
+import { api } from './api.js';
 
-// Agrega datos de negocio para el panel de vendedor a partir de los mismos
-// servicios que usa el comprador (no hay una fuente de datos paralela). Deja
-// el punto de entrada listo para un futuro dashboard servido por backend.
+// Panel de vendedor: a diferencia de la navegación de compra (que degrada
+// en silencio si el backend no responde), acá un fallo de conexión se deja
+// propagar — un vendedor necesita saber si su inventario no cargó porque no
+// tiene productos o porque el servidor no respondió (ver
+// docs/PRINCIPIOS.md §4, Transparencia). js/screens/seller.js decide cómo
+// mostrarlo.
 export const sellerService = {
   async getDashboard(storeId) {
     const [store, products, orders] = await Promise.all([
-      getStoreById(storeId),
-      productService.getByStore(storeId),
+      storeService.getById(storeId),
+      api.get('/products/mine/list', { auth: true }),
       orderService.getOrdersForStore(storeId),
     ]);
     const totalSales = orders.reduce((sum, o) => sum + o.total, 0);
@@ -31,10 +34,10 @@ export const sellerService = {
   },
 
   async addProduct(storeId, productData) {
-    return productService.addProduct({ ...productData, storeId });
+    return api.post('/products', productData, { auth: true });
   },
 
   async updateProduct(productId, patch) {
-    return productService.updateProduct(productId, patch);
+    return api.patch(`/products/${productId}`, patch, { auth: true });
   },
 };

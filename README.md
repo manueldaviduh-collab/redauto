@@ -27,20 +27,37 @@ estado. La documentación de arquitectura completa vive en `docs/`:
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — crecimiento por etapas, empezando
   por un piloto cerrado con tiendas reales.
 
-> **Aviso técnico antes de usar esto con una tienda real:** todo persiste
-> en `localStorage`, es decir, **por navegador, no por cuenta**. Un
-> vendedor que edita su inventario en su teléfono, hoy, no lo ve ningún
-> comprador en el suyo. Es el primer bloqueador documentado en
-> `docs/ARQUITECTURA.md` §11 y el primer paso de `docs/ROADMAP.md`
-> (Etapa 0) — resolverlo (backend real mínimo para productos/tiendas/
-> pedidos) es requisito antes de un piloto con usuarios reales, no una
-> mejora posterior.
+> **Estado actual (se actualiza a medida que avanza el roadmap):** ya existe
+> un backend real (`server/`) para cuenta de usuario/tienda y catálogo de
+> productos — ver "Backend real" más abajo. Carrito, favoritos, garage de
+> vehículos, notificaciones y checkout **todavía** viven en `localStorage`
+> del navegador — ver `docs/ARQUITECTURA.md` §11 para el detalle completo
+> de qué falta y `docs/ROADMAP.md` para el orden en que se resuelve.
 
 ## Cómo ejecutar el proyecto
 
-Es una app estática (HTML/CSS/JS con módulos ES nativos, sin build step).
-Los módulos ES requieren servirse por HTTP (no funcionan abriendo el archivo
-directamente con `file://`). Desde la raíz del proyecto:
+El frontend es una app estática (HTML/CSS/JS con módulos ES nativos, sin
+build step) que habla con el backend real en `server/` para cuenta de
+usuario/tienda y productos. Para tener la app completa funcionando hacen
+falta los dos:
+
+### 1. Backend (`server/`)
+
+Instrucciones completas, incluida cómo desplegarlo, en
+[`server/README.md`](server/README.md). Resumen:
+
+```bash
+cd server
+npm install
+cp .env.example .env        # completa DATABASE_URL y JWT_SECRET
+npm run migrate             # crea las tablas (sin datos de muestra)
+npm start                   # http://localhost:4000
+```
+
+### 2. Frontend
+
+Los módulos ES requieren servirse por HTTP (no funcionan abriendo el
+archivo directamente con `file://`). Desde la raíz del proyecto:
 
 ```bash
 # opción 1
@@ -50,19 +67,30 @@ python3 -m http.server 8080
 npx serve .
 ```
 
-Luego abre `http://localhost:8080`. Para simular un teléfono, usa las
-herramientas de desarrollador del navegador (375–430px de ancho). El layout
-también responde en tablet/escritorio (sidebar de navegación desde 1024px).
+Luego abre `http://localhost:8080`. Si el backend corre en una URL distinta
+a `http://localhost:4000/api`, cambia la línea `window.REDAUTO_API_URL` en
+`index.html` — es la única línea que hay que tocar para apuntar a otro
+backend (local, de prueba o de producción).
 
-### Cuentas de demostración
+Para simular un teléfono, usa las herramientas de desarrollador del
+navegador (375–430px de ancho). El layout también responde en
+tablet/escritorio (sidebar de navegación desde 1024px).
 
-No hay backend de autenticación: `authService` valida contra estas cuentas
-(y contra las que se registren desde la app, guardadas en `localStorage`).
+### Cómo crear tu cuenta y tu tienda
 
-| Rol       | Correo                | Contraseña |
-|-----------|------------------------|------------|
-| Comprador | `demo@redauto.com`     | `demo123`  |
-| Tienda    | `tienda@redauto.com`   | `demo123`  |
+No hay cuentas de demostración — nunca existieron en el backend real, y ya
+se quitaron del frontend. Para vender en RedAuto:
+
+1. Con el backend y el frontend corriendo, abre la app y ve a **Crear
+   cuenta**.
+2. Completa tus datos, marca la casilla **"Quiero vender en RedAuto
+   (registrar mi tienda)"** y escribe el nombre de tu tienda.
+3. Al confirmar quedas con una cuenta de vendedor real y tu tienda creada
+   en la base de datos — la app te lleva directo al **Panel de vendedor**,
+   pestaña Inventario, donde ya puedes agregar tus productos reales.
+
+Una cuenta sin marcar esa casilla queda como comprador normal (igual que
+cualquier persona real usando la app).
 
 ## Arquitectura
 
@@ -70,26 +98,30 @@ No hay backend de autenticación: `authService` valida contra estas cuentas
 index.html          Shell de la app (splash, header/nav/toast/modal son contenedores fijos)
 assets/              logo-mark.png / favicon.png (recorte del ícono de marca provisto)
 css/styles.css       Sistema de diseño: tokens de color/tipografía/sombra + componentes
+server/              Backend real (Node.js + Express + Postgres) — ver server/README.md
 js/
   app.js             Punto de entrada: arranca el router y controla el splash screen
+  config.js            URL del backend (window.REDAUTO_API_URL, ver index.html)
   router.js           Router hash-based, mapea rutas -> pantallas, transición de entrada
   nav.js               navigate()/parseHash(), sin dependencias circulares
-  data/                Datos centralizados (mock), una fuente de verdad por dominio
+  data/                Catálogo local de muestra (una fuente de verdad por dominio, no
+                       remplaza al backend — ver services/*.js para qué ya es real)
     categories.js, vehicles.js, stores.js, products.js, users.js,
     notifications.js, reviews.js
   services/            Capa de negocio — el único punto de acceso a los datos
     storage.js          Envoltorio sobre localStorage (namespacing + try/catch)
-    productService.js   Búsqueda/filtros, compatibilidad, estado de inventario,
-                         catálogo + overrides del vendedor
-    storeService.js      Tiendas verificadas
+    api.js                Cliente HTTP hacia el backend real (fetch + JWT + errores)
+    productService.js   Búsqueda/filtros, compatibilidad, estado de inventario;
+                         combina el catálogo local de muestra con el backend real
+    storeService.js      Tiendas verificadas; combina local + backend real
     categoryService.js
-    vehicleService.js    "Mis Vehículos": garage (CRUD) + vehículo activo
+    vehicleService.js    "Mis Vehículos": garage (CRUD) + vehículo activo (localStorage)
     cartService.js        Carrito (localStorage) + evento global de cambio
-    favoritesService.js   Favoritos de productos y de tiendas
-    authService.js         Sesión demo + registro (localStorage)
-    orderService.js         Historial de pedidos + checkout (sin pagos reales)
-    sellerService.js         Agrega datos para el panel de vendedor
-    notificationService.js   Centro de notificaciones (leído/no leído)
+    favoritesService.js   Favoritos de productos y de tiendas (localStorage)
+    authService.js         Cuenta y sesión reales contra el backend (JWT)
+    orderService.js         Historial de pedidos + checkout (localStorage, sin pagos reales)
+    sellerService.js         Panel de vendedor: lee/escribe productos reales en el backend
+    notificationService.js   Centro de notificaciones (leído/no leído, localStorage)
   ui/                   Presentación reutilizable
     icons.js, productArt.js (ilustraciones de producto), components.js,
     toast.js, modal.js, chat.js ("Preguntar a la tienda")
@@ -153,47 +185,55 @@ llamada a un backend real, no debería tocar ninguna pantalla.
     pedido en estado explícito **"Pendiente de pago (MVP)"** — no se simula
     ningún pago exitoso; una nota de "Protección de compra RedAuto" refuerza
     que el pedido y el historial quedan dentro de la plataforma.
-11. **Cuenta** — login/registro con validación de campos, sesión demo
-    persistida, perfil con historial de pedidos y accesos a vehículos/
-    favoritos/notificaciones.
+11. **Cuenta** — login/registro **reales** contra el backend (contraseñas
+    con hash, sesión con JWT), sin cuentas de demostración. Al registrarse,
+    marcar "Quiero vender en RedAuto" crea además una tienda real asociada
+    a la cuenta. Perfil con historial de pedidos y accesos a
+    vehículos/favoritos/notificaciones.
 12. **Panel de vendedor** — sólo accesible con una cuenta de rol `vendedor`:
-    resumen de ventas (KPIs calculados en vivo), pedidos de la tienda,
-    inventario con alta/edición de productos (persistido en `localStorage`) y
-    estado de verificación.
+    resumen de ventas, pedidos de la tienda, inventario con alta/edición de
+    productos **persistidos en la base de datos real** (no en
+    `localStorage`), y estado de verificación.
 
-## Qué es simulado localmente vs. qué está listo para backend
+## Qué es real, qué es simulado, y qué está listo para conectarse
 
-**Simulado en el navegador (sin servidor):**
-- Sesión de usuario y registro (`authService` + `localStorage`).
+**Ya conectado a un backend real (`server/`, Postgres — sin datos de
+muestra):**
+- Cuenta de usuario y sesión (`authService`): contraseñas con hash
+  (bcrypt), sesión con JWT. Sin cuentas de demostración.
+- Registro de tienda (parte del mismo flujo de registro, con la opción
+  "Quiero vender en RedAuto").
+- Alta y edición de productos desde el panel de vendedor
+  (`sellerService`/`productService`) — un producto que agregas ahí queda
+  en la base de datos, visible para cualquiera que abra la app apuntando
+  al mismo backend, no sólo en tu navegador.
+- Navegación de compra (Inicio, Buscar, Tiendas, detalle de producto/
+  tienda): combina el catálogo local de muestra con las tiendas/productos
+  reales del backend, para que lo que subas aparezca en la misma
+  navegación sin ninguna pantalla nueva.
+
+**Todavía simulado en el navegador (sin servidor) — ver
+`docs/ROADMAP.md` para el orden en que se conecta cada uno:**
 - Carrito, favoritos (productos y tiendas) y garage de vehículos
   (`localStorage`).
-- Pedidos creados en checkout (no hay pasarela de pago real conectada).
-- Alta/edición de productos del panel de vendedor (se guardan como
-  "overrides" sobre el catálogo base, en `localStorage`).
-- Verificación de tienda: es un dato fijo de demostración, no un flujo de
-  validación real.
-- Notificaciones y reseñas: datos de muestra fijos (no hay backend de
-  notificaciones push ni sistema de reseñas de compradores reales todavía).
+- Pedidos creados en checkout: no hay pasarela de pago real conectada, y el
+  pedido en sí todavía se guarda en `localStorage` (no en el backend) —
+  siguiente paso natural una vez el flujo de compra esté validado.
+- Verificación de tienda: toda tienda que se registra queda "verificada"
+  automáticamente en el backend — no hay flujo de KYC real todavía (se
+  declara así explícitamente, ver `server/README.md`).
+- Notificaciones y reseñas: datos de muestra fijos.
 - Chat "Preguntar a la tienda": las respuestas se generan en el cliente a
   partir de los datos reales del producto/tienda (no hay mensajería real ni
   un vendedor humano respondiendo). WhatsApp/llamada quedan como respaldo
   secundario y usan `wa.me`/`tel:` reales.
 
-**Listo para conectar a backend sin rediseñar pantallas:**
-- Cada `services/*.js` expone funciones `async` con un contrato estable
-  (`search`, `getById`, `checkout`, `login`, etc.) pensado para volverse un
-  `fetch` a una API real.
-- `productService` ya está separado en catálogo base + overrides, análogo a
-  "catálogo global" vs. "inventario por tienda" en un backend real.
-- `orderService.checkout()` recibe los datos de envío y devuelve un pedido
-  con estado explícito, listo para engancharse a un proveedor de pagos y a
-  cálculo de envío real.
-- `sellerService.getDashboard()` es el único punto de entrada para las
-  métricas del panel — puede pasar a leer de `/api/stores/:id/dashboard` sin
-  tocar `seller.js`.
-
-El esquema relacional objetivo (tablas, relaciones, índices) para cuando
-todo esto se mueva a un backend real está en
+**Cómo sigue conectándose el resto sin rediseñar pantallas:** cada
+`services/*.js` expone funciones `async` con un contrato estable, así que
+mover carrito/pedidos/favoritos al backend es el mismo patrón ya usado para
+auth y productos — reemplazar el cuerpo de la función, no su firma (ver
+`docs/ARQUITECTURA.md` §12). El esquema relacional completo (incluidas las
+tablas que el backend actual todavía no usa) está en
 [`docs/BASE_DE_DATOS.md`](docs/BASE_DE_DATOS.md).
 
 ## Notas de diseño

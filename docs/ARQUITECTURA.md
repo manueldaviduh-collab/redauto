@@ -23,12 +23,20 @@ Documentos relacionados, para no duplicar contenido:
 
 ## 1. Qué es esto hoy, en una frase
 
-Una SPA estática (HTML/CSS/JS con módulos ES nativos, **sin build step,
-sin framework, sin backend**) que corre 100% en el navegador y persiste
-todo en `localStorage`. No es un prototipo desechable: está
-deliberadamente organizada en capas para que reemplazar "sin backend" por
-"con backend" sea un cambio **localizado y mecánico**, no una reescritura
-(ver §12).
+Una SPA (HTML/CSS/JS con módulos ES nativos, **sin build step, sin
+framework**) que corre en el navegador, más un **backend real mínimo**
+(`server/`: Node.js + Express + PostgreSQL) que ya sostiene el registro de
+cuentas, el alta de tiendas y el CRUD de productos — no es un plan a
+futuro, es código que corre y tiene una base de datos detrás. El resto
+(carrito, pedidos, favoritos, garage de vehículos, notificaciones) sigue
+viviendo en `localStorage` (ver §7 para el detalle exacto de qué está de
+cada lado hoy). La app está organizada en capas justamente para que esa
+migración fuera, servicio por servicio, un cambio **localizado y
+mecánico** en vez de una reescritura — y eso ya se verificó en la
+práctica: `authService`, `productService`, `storeService` y
+`sellerService` se conectaron al backend real sin tocar el render de
+ninguna pantalla, más allá de un checkbox nuevo en el formulario de
+registro (ver §12).
 
 ## 2. Stack tecnológico
 
@@ -50,14 +58,22 @@ deliberadamente organizada en capas para que reemplazar "sin backend" por
 | Playwright + Chromium | Verificación manual de flujos durante el desarrollo (no hay suite persistida en el repo todavía — ver §15) |
 | esbuild | Sólo se usa puntualmente para empaquetar una copia de un solo archivo de la app como demo interactivo compartible (artifact) — no es parte del pipeline de build del proyecto real, que no tiene build step |
 
-**Backend (no existe todavía — stack recomendado para la Etapa 1 del
-roadmap, ver `ROADMAP.md` y `DECISIONES.md` ADR-007):**
+**Backend (existe desde ahora — Etapa 1 del roadmap arrancada, en
+[`server/`](../server/); ver `server/README.md` para cómo correrlo):**
 
-| Pieza | Recomendación | Alternativa considerada |
+| Pieza | Elegido | Por qué / alternativa considerada |
 |---|---|---|
-| Base de datos | PostgreSQL | NoSQL (Firestore/Mongo) — descartado, el dominio es relacional (ver `DECISIONES.md`) |
-| API + Auth + Storage | Supabase (Postgres + Auth + Storage administrados) para arrancar rápido | Backend propio (Node.js/Express + Postgres + JWT propio) si se prefiere control total desde ya |
+| Base de datos | PostgreSQL | NoSQL (Firestore/Mongo) — descartado, el dominio es relacional (ver `DECISIONES.md`, ADR-007) |
+| Servidor API | Node.js + Express | Mismo lenguaje que el frontend (JS), sin capa nueva que aprender; suficiente para el número de endpoints actual (auth + products + stores) |
+| Autenticación | JWT propio (`jsonwebtoken`) + contraseñas con `bcryptjs` | Se evaluó Supabase Auth (evita reconstruir esta pieza) pero se optó por control total del esquema de datos desde el día uno del piloto — ver `DECISIONES.md`, ADR-007. Sigue siendo una migración razonable más adelante si el volumen de auth lo justifica |
+| Cliente de base de datos | `pg` (node-postgres), sin ORM | El esquema actual (4 tablas) no justifica todavía la indirección de un ORM (Prisma/Drizzle) — SQL directo en `server/src/routes/*.js` es más fácil de auditar a este tamaño |
+| Hosting backend (para desplegar, ver `server/README.md`) | Railway o Render (Node + Postgres administrado en el mismo lugar), o Postgres en Supabase/Neon + servidor en cualquier otro proveedor | — |
 | Hosting frontend | Cualquier hosting estático (Netlify, Vercel, GitHub Pages, S3+CDN) — el frontend sigue siendo estático incluso con backend real | — |
+
+Lo que el backend **todavía no cubre** (carrito, pedidos/pagos, subida de
+imágenes, reseñas, verificación real de tienda) sigue resuelto del lado
+del cliente o simulado — ver §7, §9 y `ROADMAP.md` para el orden en que se
+agrega cada pieza.
 
 ## 3. Las capas y la regla de dependencia
 
@@ -204,54 +220,67 @@ frontend con un backend real, ver §10.)*
 
 ## 7. Base de datos
 
-Hoy no hay base de datos: los catálogos viven como arrays en
-`js/data/*.js` y todo lo mutable persiste en `localStorage` (inventario
-completo de claves, esquema relacional objetivo en Postgres, decisiones de
-diseño del esquema y plan de migración por pasos:
-**[`BASE_DE_DATOS.md`](./BASE_DE_DATOS.md)**). Resumen de una línea: el
-esquema objetivo ya modela `store_id`/`product_id`/etc. como si fueran
-claves foráneas reales, así que migrar no exige rediseñar datos, exige
-encender una base de datos detrás de un esquema que ya está pensado para
-eso.
+**Ya existe una base de datos real** (PostgreSQL, esquema en
+[`server/src/schema.sql`](../server/src/schema.sql)) para `users`,
+`categories`, `stores` y `products` — el subconjunto necesario para que
+una tienda real se registre y publique productos. Es deliberadamente más
+chica que el esquema objetivo completo (sin `product_images`,
+`order_items`, `reviews`, `vehicle_brands`/`vehicle_models`, etc.) porque
+la tarea que la creó tenía alcance acotado a "registro + alta de
+productos", no a migrar todo de una vez.
+
+Lo que **todavía no tiene tabla real** — carrito, pedidos, favoritos,
+garage de vehículos, notificaciones, reseñas — sigue como arrays en
+`js/data/*.js` + `localStorage`, igual que antes.
+
+Inventario completo de claves de `localStorage` que quedan, el esquema
+implementado hoy, el esquema objetivo completo en Postgres, y el plan de
+migración de lo que falta: **[`BASE_DE_DATOS.md`](./BASE_DE_DATOS.md)**.
+Resumen de una línea: el esquema objetivo ya modelaba `store_id`/
+`product_id`/etc. como si fueran claves foráneas reales desde antes de que
+existiera backend, así que implementar la primera porción no exigió
+rediseñar datos — exigió encender Postgres detrás de un esquema que ya
+estaba pensado para eso, y el resto de las tablas objetivo esperan el
+mismo tratamiento cuando les toque (ver `ROADMAP.md`).
 
 ## 8. Autenticación
 
-**Hoy (demo, sin backend):** `js/services/authService.js` valida contra un
-arreglo de cuentas de muestra (`js/data/users.js`) más las cuentas creadas
-vía "Registrarse" en ese navegador (`localStorage: users_extra`). La
-sesión activa (`{ userId, role }`) se guarda en `localStorage: session`.
-Los roles son `comprador` y `vendedor` (el panel de vendedor,
-`seller.js`, sólo es accesible con rol `vendedor`).
+**Real, contra el backend (`server/src/routes/auth.js` +
+`server/src/middleware/auth.js`):** `js/services/authService.js` ya no
+valida nada localmente — `register()`/`login()` llaman a
+`POST /api/auth/register` / `POST /api/auth/login`. El servidor:
+- Hashea la contraseña con `bcryptjs` (nunca la guarda ni la compara en
+  texto plano).
+- Devuelve un **JWT** (`jsonwebtoken`, 30 días de expiración) firmado con
+  `JWT_SECRET`. El frontend guarda sólo ese token
+  (`localStorage: auth_token`, ver `storage.js`), no la sesión "cruda", y
+  lo envía como `Authorization: Bearer <token>` en cada request
+  autenticado (ver §10).
+- Valida email único (case-insensitive, índice único en `users`) y
+  rechaza duplicados con un 409 legible.
+- Registro de vendedor: si el formulario manda `storeName`, el registro
+  de usuario y la creación de la tienda ocurren en **una sola transacción
+  SQL** — o se crean ambos, o ninguno.
 
-**⚠️ Esto no es una implementación de seguridad real — es una simulación
-para poder demostrar los flujos de login/registro/roles sin backend.** En
-particular: las contraseñas se comparan en texto plano contra lo guardado
-en `localStorage`, sin hashing. Es aceptable para un demo local; **no debe
-usarse tal cual en producción bajo ninguna circunstancia** — esto se
-resuelve completo en la Etapa 1 del roadmap, no es una mejora incremental
-sobre lo actual, es un reemplazo.
+Los roles siguen siendo `comprador` y `vendedor` (el panel de vendedor,
+`seller.js`, sólo es accesible con rol `vendedor`), pero ahora la
+autorización se hace cumplir **en el servidor**, no sólo en el cliente:
+`requireAuth`/`requireSeller` (middleware) protegen cada endpoint de
+escritura de productos, y `storeId` para esas escrituras **siempre se
+resuelve desde `owner_user_id` del token**, nunca desde lo que mande el
+body del request — así un vendedor no puede escribir en el inventario de
+otra tienda aunque intente mandar un `storeId` ajeno a mano (ver
+`server/src/routes/products.js`, `getOwnStoreId`).
 
-**Objetivo (con backend — Etapa 1 del roadmap):**
-- Recomendado: **Supabase Auth** (email/password +, si conviene más
-  adelante, login social) — da hashing de contraseñas, verificación de
-  email, y JWT ya resueltos, en vez de reconstruir esa pieza a mano.
-  Alternativa igual de válida con backend propio: `bcrypt` para hashear
-  contraseñas + JWT firmados por el servidor.
-- El frontend deja de guardar la sesión "cruda" en `localStorage` y pasa a
-  guardar sólo un **token** (JWT), enviado en cada request como
-  `Authorization: Bearer <token>` (ver §10).
-- Autorización por rol (`comprador`/`vendedor`/`admin`, ver
-  `BASE_DE_DATOS.md`) se valida en el backend en cada endpoint sensible
-  (ej. sólo el dueño de una tienda puede editar su inventario) — hoy esa
-  validación sólo existe en el cliente (`seller.js` revisa `user.role`),
-  lo cual es trivial de saltarse porque no hay servidor que lo haga
-  cumplir. Esto es aceptable en un demo sin datos reales; **no** lo es en
-  cuanto haya inventario/pedidos reales de terceros.
-- Si se usa Supabase/Postgres, conviene apoyarse en **Row Level Security
-  (RLS)** para que, por ejemplo, "un vendedor sólo puede leer/escribir
-  productos de su propia tienda" sea una regla de la base de datos, no
-  sólo del código de la API — una capa de seguridad menos dependiente de
-  que nadie se olvide de un `if`.
+**Lo que falta antes de un volumen/sensibilidad mayores** (ver
+`server/README.md`, sección de seguridad, y `ROADMAP.md`): límite de
+intentos de login (rate limiting), verificación real de tienda — hoy toda
+tienda que se registra queda `verificación: verificada` automáticamente,
+una simplificación deliberada del piloto (self-service sin fricción para
+el fundador), no un descuido de seguridad. Row Level Security (RLS) de
+Postgres sigue siendo una capa adicional razonable si en algún momento se
+migra a Supabase o se agregan más roles/endpoints donde sea fácil
+olvidarse de un `if` de autorización en el código de la API.
 
 ## 9. Almacenamiento de imágenes
 
@@ -286,29 +315,35 @@ vendedor — ver `ROADMAP.md`, Etapa 1 en adelante):**
 
 ## 10. Comunicación frontend ↔ backend
 
-**Hoy no existe** — el "backend" es el propio navegador
-(`services/*.js` resolviendo contra `localStorage` con una latencia
-artificial para simular una llamada de red real, ver
-`js/services/productService.js`). Pero el contrato ya está definido, y es
-exactamente el contrato que tendría una API real (ver §12).
+**Ya existe, para auth/productos/tiendas** — `js/services/api.js` es el
+cliente HTTP (`fetch` con manejo de errores y del header `Authorization`
+centralizados) que usan `authService`, `productService`, `storeService` y
+`sellerService` para hablar con `server/`. El resto de los servicios
+(`cartService`, `orderService`, `favoritesService`, `vehicleService`,
+`notificationService`) todavía resuelve contra `localStorage` — mismo
+contrato `async`, sin backend real detrás todavía (ver §7).
 
-**Objetivo, cuando exista backend:**
+**Convención implementada:**
 
-| Aspecto | Convención |
+| Aspecto | Cómo está hoy |
 |---|---|
-| Protocolo | HTTPS, API REST convencional (`GET/POST/PATCH/DELETE`) |
+| Protocolo | HTTP (HTTPS en producción), REST (`GET/POST/PATCH`) |
 | Formato | JSON en request y response |
-| Rutas | `/api/<recurso>` — ej. `/api/products`, `/api/products/:id`, `/api/stores/:id/products`, `/api/orders`, `/api/auth/login` |
-| Autenticación | Header `Authorization: Bearer <jwt>` en cada request autenticado (ver §8) |
-| Errores | Códigos de estado HTTP correctos (400/401/403/404/409/500) + body `{ "error": "mensaje legible" }`. El frontend ya tiene el hábito de esto: los servicios devuelven `{ ok: false, error }` en vez de lanzar excepciones para errores esperables (ver `authService.login`, `orderService.checkout`) — mismo patrón, ahora alimentado por la respuesta real del API en vez de una validación local |
-| CORS | Si el frontend se sirve desde un dominio distinto al de la API (lo más probable — frontend estático + API en Supabase/servidor propio), la API debe permitir el origen del frontend explícitamente |
-| Paginación | No existe hoy (los catálogos son chicos). Al crecer, `GET /api/products?page=2&pageSize=20` — convención simple, no cursor-based, mientras el volumen no lo exija |
+| Rutas | `/api/auth/{register,login,me}`, `/api/products[/:id][/mine/list]`, `/api/stores[/:id]` — ver la tabla completa en `server/README.md` |
+| Autenticación | Header `Authorization: Bearer <jwt>` en cada request autenticado (ver §8), agregado automáticamente por `api.js` cuando se llama con `{ auth: true }` |
+| Errores | Códigos de estado HTTP (400/401/403/404/409/500) + body `{ "error": "mensaje legible" }`. `js/services/api.js` los convierte en una `ApiError` con ese mensaje, que cada pantalla muestra tal cual (ver `seller.js`, que ya no traga errores de conexión en silencio) |
+| CORS | El servidor usa `cors({ origin: CORS_ORIGIN })` — en desarrollo `*`, en producción hay que fijarlo al dominio real del frontend (ver `server/README.md`, sección de despliegue) |
+| Configuración de URL | `window.REDAUTO_API_URL` en `index.html` — un solo valor a cambiar al desplegar, no hace falta tocar ni reconstruir el resto de la app |
+| Paginación | No existe todavía (catálogos chicos). Al crecer, `GET /api/products?page=2&pageSize=20` — no es un problema real a la escala del piloto |
 
-**Por qué esto ya "existe" en la práctica:** cada función de
-`services/*.js` tiene la forma `async nombre(args) → Promise<Resultado>`,
-sin exponer nunca que hoy resuelve contra `localStorage`. Conectar el
-backend real es reemplazar el cuerpo de esas funciones por `fetch(...)`
-contra las rutas de la tabla de arriba — el ejemplo concreto está en §12.
+**Cómo se mantiene la app usable sin backend desplegado en algún lado:**
+la navegación de compra (`productService`/`storeService`) intenta el
+backend y, si no responde, degrada en silencio al catálogo local de
+`js/data/*.js` — para que Home/Buscar/Tiendas nunca se rompan del todo. El
+panel de vendedor (`sellerService`) hace lo opuesto a propósito: **no**
+esconde un fallo de conexión, porque un vendedor necesita saber si su
+inventario está vacío o si el servidor simplemente no respondió (ver
+`docs/PRINCIPIOS.md`, Transparencia).
 
 ## 11. Qué se rompe primero si esto crece sin cambiar nada
 
@@ -316,53 +351,61 @@ Ordenado por qué tan pronto se vuelve un problema real:
 
 | Límite actual | Por qué existe | Cuándo se vuelve bloqueante |
 |---|---|---|
-| `localStorage` es **por navegador**, no por cuenta | No hay backend | Inmediatamente en cuanto haya una tienda real: el vendedor edita su inventario en su navegador y **ningún comprador en otro dispositivo lo ve**. Este es el bloqueador #1 antes del piloto — ver `ROADMAP.md`, Etapa 0. |
-| Autenticación sin hashing de contraseñas ni autorización real en servidor | No hay backend (ver §8) | Bloqueante para cualquier dato real de terceros — no es "mejorable después", es un reemplazo completo antes de manejar cuentas/inventario reales. |
-| `productService.search()` filtra un array en memoria | No hay base de datos | Deja de ser instantáneo bien antes de "millones de productos" — con cientos de tiendas y miles de productos ya conviene un índice real (Postgres con índices, luego un motor de búsqueda si hace falta relevancia). No es un problema a los 50–200 productos de un piloto. |
-| No hay control de concurrencia de inventario | No hay base de datos | En cuanto dos compradores puedan comprar la última unidad del mismo producto al mismo tiempo. Bloqueante para cualquier operación con inventario real ajustado (no antes). |
-| El carrito y la sesión no sobreviven a "borrar datos del navegador" | Diseño intencional del MVP | Aceptable para demo/piloto controlado; no aceptable para un usuario real que cambia de teléfono o borra caché. |
+| `localStorage` es **por navegador**, no por cuenta — **ya resuelto para tiendas/productos/cuentas** (viven en Postgres), **sigue así para carrito/pedidos/favoritos/garage** | Backend implementado sólo para auth+productos+tiendas (ver §7) | Ya no bloquea la parte de catálogo: un vendedor que edita su inventario, cualquier comprador en cualquier dispositivo lo ve. Sigue bloqueando pedidos reales entre dispositivos — el carrito y el historial de compra todavía son por navegador (ver `ROADMAP.md`, resto de la Etapa 1). |
+| `productService.search()` sobre backend filtra con `ILIKE`, no un índice de texto completo | Base de datos ya existe, pero sin índice de búsqueda dedicado todavía | Deja de ser instantáneo bien antes de "millones de productos" — con cientos de tiendas y miles de productos conviene un índice full-text o un motor de búsqueda dedicado. No es un problema a los 50–200 productos de un piloto. |
+| No hay control de concurrencia de inventario (dos compradores comprando la última unidad a la vez) | El backend actual no tiene todavía un flujo de compra/reserva de stock (sólo CRUD de productos) | Bloqueante en cuanto exista checkout real contra este backend con inventario ajustado — no antes, porque hoy no hay checkout real que descuente stock. |
+| El carrito, el historial de pedidos y el garage de vehículos no sobreviven a "borrar datos del navegador" | Todavía no migrados a Postgres (ver §7 y `BASE_DE_DATOS.md` §6) | Aceptable para el piloto controlado actual; no aceptable para un comprador real que cambia de teléfono o borra caché — es el siguiente paso de la Etapa 1, no de una etapa futura. |
 | Sin SEO / sin server-side rendering | SPA pura, contenido no indexable por buscadores | Bloqueante el día que la adquisición de compradores dependa de tráfico orgánico de Google hacia páginas de producto/tienda. No bloqueante mientras la adquisición sea directa (referidos, redes sociales, boca a boca del piloto). |
 | Un solo idioma, una sola moneda (USD, sin formateo por locale) | No hace falta todavía | Bloqueante sólo al expandir fuera de Venezuela o a un mercado con otra moneda dominante. |
 | Sin panel de analítica/eventos | No implementado | No bloquea el piloto; sí bloquea decidir con datos qué mejorar después del piloto — conviene instrumentarlo apenas haya usuarios reales, no antes (ver `ROADMAP.md`). |
 
-## 12. Cómo se conecta a un backend real (mecánica del cambio)
+## 12. Cómo se conecta a un backend real (mecánica del cambio, ya ejecutada una vez)
 
-Cada `services/*.js` ya tiene la forma de un cliente de API: funciones
-`async`, un solo objeto exportado, sin filtrarle detalles de
-`localStorage` a quien lo llama. El cambio, cuando llegue el backend
-(ver `ROADMAP.md`, Etapa 1), es reemplazar el **cuerpo** de cada función,
-no su firma. Ejemplo real con `productService.search`:
+Cada `services/*.js` tiene la forma de un cliente de API: funciones
+`async`, un solo objeto exportado, sin filtrarle a quien lo llama si hoy
+resuelve contra `localStorage` o contra una red real. El cambio, para
+cada servicio migrado, fue reemplazar el **cuerpo** de sus funciones, no
+su firma — y las pantallas que los llaman no se tocaron. Ejemplo real,
+`productService.search`, tal como quedó (`js/services/productService.js`):
 
 ```js
-// Hoy (js/services/productService.js)
 async search(filters = {}) {
   await delay();
-  return getAllMerged().filter((p) => { /* ...filtros en memoria... */ });
-}
-
-// Con backend — misma firma, mismos llamadores (search.js no cambia):
-async search(filters = {}) {
-  const params = new URLSearchParams(filters);
-  const res = await fetch(`/api/products/search?${params}`);
-  if (!res.ok) throw new Error('No se pudo buscar productos');
-  return res.json();
+  const base = applyFilters(getAllMerged(), filters);       // catálogo local (js/data/products.js)
+  const remote = await fetchBackendProducts(filters);        // fetch a /api/products — [] si falla
+  return [...base, ...remote];                               // namespaces de id disjuntos (p1.. vs uuid)
 }
 ```
 
-Esto aplica igual a `authService.login`, `orderService.checkout`,
-`sellerService.getDashboard`, etc. La migración se puede hacer **servicio
-por servicio**, no todo de una vez (ver §13).
+`search.js`/`home.js` no cambiaron una línea: siguen llamando
+`productService.search(filters)` y recibiendo un array de productos, sin
+saber que ahora una parte viene de Postgres. `authService`,
+`storeService` y `sellerService` se migraron con el mismo patrón —
+`authService` fue el único que dejó de tener un "modo local" en paralelo,
+porque no tiene sentido simular login/registro cuando ya hay backend real
+para eso.
 
-## 13. Plan de migración (resumen)
+**Por qué el catálogo se sirve *mezclado* (local + backend) en vez de
+sólo backend:** para que Home/Buscar/Tiendas nunca se vean vacíos por un
+fallo de red — ver §10 y `docs/PRINCIPIOS.md`. Las tiendas/productos de
+`js/data/*.js` siguen existiendo únicamente para eso, **no son datos
+reales de ninguna tienda** — el panel de vendedor y el registro de cuenta
+sólo escriben contra el backend real, nunca contra ese catálogo local.
 
-Detalle completo, con qué claves de `localStorage` se retiran en cada
-paso, en [`BASE_DE_DATOS.md` §4](./BASE_DE_DATOS.md). Resumen:
+## 13. Plan de migración (resumen — parte 1 ya hecha)
 
-1. **`products` + `stores` + `product_compatibility`** — el bloqueador
-   real del piloto (§11): sin esto, lo que un vendedor edita en el panel
-   no lo ve ningún comprador fuera de su propio navegador.
-2. **`users` (con auth real, §8) + `orders` + `order_items`** — historial
-   y sesión reales, entre dispositivos.
+Detalle completo, con qué claves de `localStorage` se retiraron y cuáles
+quedan, en [`BASE_DE_DATOS.md` §3 y §6](./BASE_DE_DATOS.md). Resumen:
+
+1. **`products` + `stores` + `users`/auth — ✅ hecho.** Era el bloqueador
+   real del piloto (§11): sin esto, lo que un vendedor editaba en el panel
+   no lo veía ningún comprador fuera de su propio navegador. Implementado
+   en `server/` con Postgres; `product_overrides` y `users_extra` (las
+   claves de `localStorage` que esto reemplazó) ya no existen.
+2. **`orders` + `order_items` (carrito → pedido real)** — siguiente paso
+   pendiente dentro de la Etapa 1: historial de compra real, visible desde
+   cualquier dispositivo. `cartService`/`orderService` siguen en
+   `localStorage` hasta entonces.
 3. **`favorites_products` / `favorites_stores` / `user_vehicles`** — no
    bloquean negocio, se migran cuando el valor de "me siguen entre
    dispositivos" lo justifique.

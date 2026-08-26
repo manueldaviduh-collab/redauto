@@ -37,6 +37,16 @@ export async function render(container, { query }) {
           <span class="field__label">Confirmar contraseña</span>
           <input type="password" name="password2" required minlength="6" autocomplete="new-password" />
         </label>
+
+        <label class="checkbox-field">
+          <input type="checkbox" id="wants-store" name="wantsStore" />
+          <span>Quiero vender en RedAuto (registrar mi tienda)</span>
+        </label>
+        <label class="field" id="store-name-field" hidden>
+          <span class="field__label">Nombre de tu tienda</span>
+          <input type="text" name="storeName" minlength="2" placeholder="Ej. Repuestos Duarte C.A." />
+        </label>
+
         <p class="field-error" id="register-error" hidden></p>
         <button type="submit" class="btn btn--primary btn--block">Crear cuenta</button>
       </form>
@@ -46,6 +56,15 @@ export async function render(container, { query }) {
   `;
 
   bindBack(container);
+
+  const wantsStoreCheckbox = container.querySelector('#wants-store');
+  const storeNameField = container.querySelector('#store-name-field');
+  const storeNameInput = storeNameField.querySelector('input[name="storeName"]');
+  wantsStoreCheckbox?.addEventListener('change', () => {
+    storeNameField.hidden = !wantsStoreCheckbox.checked;
+    storeNameInput.required = wantsStoreCheckbox.checked;
+    if (!wantsStoreCheckbox.checked) storeNameInput.value = '';
+  });
 
   container.querySelector('#register-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -59,6 +78,12 @@ export async function render(container, { query }) {
       errorEl.hidden = false;
       return;
     }
+    const wantsStore = wantsStoreCheckbox?.checked;
+    if (wantsStore && !String(data.get('storeName') || '').trim()) {
+      errorEl.textContent = 'Ingresa el nombre de tu tienda.';
+      errorEl.hidden = false;
+      return;
+    }
 
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
@@ -68,6 +93,7 @@ export async function render(container, { query }) {
       password: data.get('password'),
       phone: data.get('phone'),
       city: data.get('city'),
+      storeName: wantsStore ? data.get('storeName') : undefined,
     });
     submitBtn.disabled = false;
 
@@ -77,7 +103,7 @@ export async function render(container, { query }) {
       return;
     }
     showToast(`Cuenta creada. ¡Bienvenido, ${result.user.name.split(' ')[0]}!`, 'success');
-    navigate(next);
+    navigate(wantsStore ? '/vendedor' : next);
   });
 }
 

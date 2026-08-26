@@ -33,12 +33,6 @@ export async function render(container, { query }) {
       </form>
 
       <p class="auth-switch">¿No tienes cuenta? <a href="#/registro${next !== '/' ? `?next=${encodeURIComponent(next)}` : ''}">Regístrate</a></p>
-
-      <div class="demo-hint">
-        <p class="demo-hint__title">${icon('info', { size: 14 })} Cuentas demo (MVP sin backend)</p>
-        <p>Comprador: <code>demo@redauto.com</code> / <code>demo123</code></p>
-        <p>Tienda: <code>tienda@redauto.com</code> / <code>demo123</code></p>
-      </div>
     </div>
   `;
 

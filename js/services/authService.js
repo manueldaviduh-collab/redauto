@@ -1,76 +1,79 @@
-import { demoUsers } from '../data/users.js';
 import { getItem, setItem, removeItem } from './storage.js';
+import { api, ApiError } from './api.js';
 
-// Autenticación 100% local para el MVP: valida contra las cuentas demo y
-// contra las cuentas registradas en este navegador. `getSession`/`login` son
-// el único contrato que la UI conoce, por lo que sustituir esto por JWT/OAuth
-// contra un backend real no debería tocar las pantallas.
-const SESSION_KEY = 'session';
-const EXTRA_USERS_KEY = 'users_extra';
+// Autenticación real contra el backend (server/) — sin cuentas de demo, sin
+// contraseñas comparadas en el cliente. El token (JWT) y una copia liviana
+// del usuario/tienda actual se cachean en localStorage sólo para que
+// `getCurrentUser()` pueda seguir siendo síncrono (así ninguna pantalla que
+// ya lo llama sin `await` — profile.js, seller.js, checkout.js — necesita
+// cambiar). La fuente de verdad sigue siendo el backend: `refreshSession()`
+// la vuelve a consultar.
+const TOKEN_KEY = 'auth_token';
+const SESSION_KEY = 'auth_session'; // { id, name, email, phone, city, role, storeId }
 
-function allUsers() {
-  return [...demoUsers, ...getItem(EXTRA_USERS_KEY, [])];
-}
-
-function delay(ms = 220) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function toSession(user, store) {
+  return { ...user, storeId: store?.id || null };
 }
 
 export const authService = {
   async login(email, password) {
-    await delay();
-    const user = allUsers().find(
-      (u) => u.email.toLowerCase() === (email || '').toLowerCase().trim()
-    );
-    if (!user) return { ok: false, error: 'No existe una cuenta con ese correo.' };
-    if (user.password !== password) return { ok: false, error: 'Contraseña incorrecta.' };
-    setItem(SESSION_KEY, { userId: user.id, role: user.role });
-    return { ok: true, user };
+    try {
+      const { token, user, store } = await api.post('/auth/login', { email, password });
+      setItem(TOKEN_KEY, token);
+      setItem(SESSION_KEY, toSession(user, store));
+      return { ok: true, user: toSession(user, store) };
+    } catch (err) {
+      return { ok: false, error: err instanceof ApiError ? err.message : 'No se pudo iniciar sesión.' };
+    }
   },
 
-  async register({ name, email, password, phone, city }) {
-    await delay();
-    const emailNorm = (email || '').toLowerCase().trim();
-    if (!name || name.trim().length < 2) return { ok: false, error: 'Ingresa tu nombre completo.' };
-    if (!/^\S+@\S+\.\S+$/.test(emailNorm)) return { ok: false, error: 'Ingresa un correo válido.' };
-    if (!password || password.length < 6) return { ok: false, error: 'La contraseña debe tener al menos 6 caracteres.' };
-    if (allUsers().some((u) => u.email.toLowerCase() === emailNorm)) {
-      return { ok: false, error: 'Ya existe una cuenta con ese correo.' };
+  // storeName es opcional: si se manda, la cuenta se crea como vendedor con
+  // su propia tienda ya asociada (ver server/src/routes/auth.js). Sin
+  // storeName, es una cuenta de comprador normal.
+  async register({ name, email, password, phone, city, storeName }) {
+    try {
+      const { token, user, store } = await api.post('/auth/register', {
+        name, email, password, phone, city, storeName,
+      });
+      setItem(TOKEN_KEY, token);
+      setItem(SESSION_KEY, toSession(user, store));
+      return { ok: true, user: toSession(user, store) };
+    } catch (err) {
+      return { ok: false, error: err instanceof ApiError ? err.message : 'No se pudo crear la cuenta.' };
     }
-    const user = {
-      id: `local-${Date.now()}`,
-      role: 'comprador',
-      name: name.trim(),
-      email: emailNorm,
-      password,
-      phone: phone || '',
-      city: city || 'Caracas',
-    };
-    const extra = getItem(EXTRA_USERS_KEY, []);
-    setItem(EXTRA_USERS_KEY, [...extra, user]);
-    setItem(SESSION_KEY, { userId: user.id, role: user.role });
-    return { ok: true, user };
   },
 
   logout() {
+    removeItem(TOKEN_KEY);
     removeItem(SESSION_KEY);
   },
 
-  getSession() {
+  getCurrentUser() {
     return getItem(SESSION_KEY, null);
   },
 
-  getCurrentUser() {
-    const session = this.getSession();
-    if (!session) return null;
-    return allUsers().find((u) => u.id === session.userId) || null;
-  },
-
   isAuthenticated() {
-    return !!this.getSession();
+    return !!getItem(TOKEN_KEY, null);
   },
 
   isSeller() {
-    return this.getSession()?.role === 'vendedor';
+    return this.getCurrentUser()?.role === 'vendedor';
+  },
+
+  // Refresca la sesión cacheada contra el backend (por si el usuario cambió
+  // algo desde otro dispositivo). No es necesario llamarlo para que la app
+  // funcione — es una mejora opcional para pantallas que quieran datos
+  // frescos (ej. al entrar al panel de vendedor).
+  async refreshSession() {
+    if (!this.isAuthenticated()) return null;
+    try {
+      const { user, store } = await api.get('/auth/me', { auth: true });
+      const session = toSession(user, store);
+      setItem(SESSION_KEY, session);
+      return session;
+    } catch {
+      this.logout();
+      return null;
+    }
   },
 };
