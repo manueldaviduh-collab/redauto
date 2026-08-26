@@ -452,3 +452,18 @@ vendedor) se vuelve el primer lugar donde algo se rompe sin que nadie se
 dé cuenta. Recomendación concreta para la Etapa 1 del roadmap: al menos
 tests end-to-end de humo (Playwright) para login → buscar → agregar al
 carrito → checkout, y para alta de producto en el panel de vendedor.
+
+## 16. PWA (instalable en el Home Screen)
+
+RedAuto es instalable como Progressive Web App (manifest + service worker),
+para poder abrirse desde el Home Screen del iPhone como una app —
+instrucciones de instalación y detalle de archivos en el
+[`README.md`](../README.md), sección "PWA — instalar RedAuto en el Home
+Screen". Es una capa de configuración separada de la app en sí
+(`manifest.webmanifest`, `sw.js`, `js/pwa.js`), sin dependencias desde
+`services/` ni `screens/` hacia ella ni viceversa — se puede quitar o
+reemplazar sin tocar ninguna pantalla. El service worker cachea únicamente
+el shell estático (HTML/CSS/JS/íconos) con una estrategia
+stale-while-revalidate; nunca cachea `/api/*` ni ningún origen distinto al
+propio, así que no interfiere con la Transparencia de datos reales descrita
+en `docs/PRINCIPIOS.md` §4.

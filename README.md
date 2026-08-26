@@ -92,15 +92,81 @@ se quitaron del frontend. Para vender en RedAuto:
 Una cuenta sin marcar esa casilla queda como comprador normal (igual que
 cualquier persona real usando la app).
 
+## PWA — instalar RedAuto en el Home Screen (iPhone y otros)
+
+RedAuto es instalable como **Progressive Web App**: agregable a la pantalla
+de inicio, abre en modo standalone (sin la barra de Safari) con el ícono y
+nombre "RedAuto", y se actualiza sola. Es puramente configuración añadida
+— no cambió ninguna pantalla, componente, color ni navegación existente.
+
+**Archivos nuevos (nada más se tocó para esto):**
+- [`manifest.webmanifest`](manifest.webmanifest) — nombre, ícono, colores,
+  `display: standalone`.
+- [`sw.js`](sw.js) — service worker: cachea el shell estático (HTML/CSS/JS/
+  íconos) para que abra al instante y funcione sin red; **nunca** cachea
+  `/api/*` ni nada de otro origen, así que los datos reales del backend
+  siempre llegan frescos.
+- [`js/pwa.js`](js/pwa.js) — registra el service worker. Archivo aparte a
+  propósito: es configuración de instalación/actualización, no lógica de
+  producto (no importa nada de `services/` ni `screens/`, y nada los
+  importa a él).
+- `assets/icons/` — el ícono que subiste, exportado a los tamaños que pide
+  iOS (`apple-touch-icon`, 120/152/167/180px) y el estándar de PWA
+  (192/512px, más versión "maskable" con margen de seguridad para Android).
+  El logo dentro de la app (splash, encabezado) sigue siendo el mismo de
+  siempre — este ícono nuevo es solo para el Home Screen y la pestaña del
+  navegador.
+- `index.html` — sólo se agregaron las etiquetas `<link>`/`<meta>` que
+  iOS/PWA necesitan (manifest, apple-touch-icon, `apple-mobile-web-app-*`)
+  y la carga de `js/pwa.js`. La pantalla de carga (splash) y todo lo demás
+  quedaron intactos.
+
+**Cómo se actualiza sin reinstalar:** el service worker sirve la copia en
+caché al instante y, en paralelo, siempre pide la versión de red y la
+guarda para la próxima vez ("stale-while-revalidate") — así que cualquier
+cambio que publiques (una pantalla, un estilo, una corrección) llega a tu
+iPhone dentro de un par de aperturas de la app, sin tocar el ícono. Si
+alguna vez publicas un cambio en `sw.js` mismo (por ejemplo, para cambiar
+la estrategia de caché), el navegador lo detecta solo, activa la versión
+nueva y recarga la pestaña abierta una sola vez — no hace falta desinstalar
+nada.
+
+**Cómo probarlo ya mismo (en este entorno, sin instalar todavía):**
+```bash
+python3 -m http.server 8080   # o el server estático que prefieras
+```
+Abre `http://localhost:8080` — el manifest, los íconos y el service worker
+ya están activos (revisa la pestaña *Application* de las herramientas de
+desarrollador: *Manifest* y *Service Workers*).
+
+**Cómo instalarlo de verdad en tu iPhone:** Safari sólo permite instalar
+(y sólo activa el service worker de forma completa) sobre **HTTPS**, o
+sobre `localhost` en el mismo dispositivo — un `http://` servido desde tu
+computador en la red local no alcanza para que el iPhone lo instale como
+PWA real. Necesitas desplegar el frontend en cualquier hosting estático con
+HTTPS gratis (Netlify, Vercel, GitHub Pages, Cloudflare Pages) — el mismo
+tipo de despliegue simple que ya se documenta para el backend en
+`server/README.md`. Una vez desplegado:
+1. Abre la URL en Safari en tu iPhone.
+2. Toca el ícono de **Compartir** (el cuadrado con la flecha hacia arriba).
+3. Elige **"Añadir a la pantalla de inicio"**.
+4. Confirma — verás el ícono con el nombre "RedAuto" en tu Home Screen.
+5. Al tocarlo, abre en pantalla completa (sin la barra de direcciones de
+   Safari), directo en la pantalla de carga de siempre.
+
 ## Arquitectura
 
 ```
 index.html          Shell de la app (splash, header/nav/toast/modal son contenedores fijos)
-assets/              logo-mark.png / favicon.png (recorte del ícono de marca provisto)
+manifest.webmanifest PWA: nombre, ícono, colores, display standalone
+sw.js                Service worker: cachea el shell estático, nunca /api/ ni otro origen
+assets/              logo-mark.png / favicon.png (logo dentro de la app, sin tocar)
+  icons/              Íconos de Home Screen/PWA generados del logo provisto (apple-touch-icon, manifest)
 css/styles.css       Sistema de diseño: tokens de color/tipografía/sombra + componentes
 server/              Backend real (Node.js + Express + Postgres) — ver server/README.md
 js/
   app.js             Punto de entrada: arranca el router y controla el splash screen
+  pwa.js               Registro del service worker (config PWA, separado de la lógica de la app)
   config.js            URL del backend (window.REDAUTO_API_URL, ver index.html)
   router.js           Router hash-based, mapea rutas -> pantallas, transición de entrada
   nav.js               navigate()/parseHash(), sin dependencias circulares
