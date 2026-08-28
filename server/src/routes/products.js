@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { requireAuth, requireSeller } from '../middleware/auth.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 
 export const productsRouter = Router();
 
@@ -44,7 +45,7 @@ async function getOwnStoreId(userId) {
 
 // GET /api/products — catálogo público real (todas las tiendas reales).
 // Soporta los mismos filtros que productService.search() ya usa.
-productsRouter.get('/', async (req, res) => {
+productsRouter.get('/', asyncHandler(async (req, res) => {
   const { categoryId, storeId, availability, type, query: q } = req.query;
   const clauses = [];
   const params = [];
@@ -58,23 +59,23 @@ productsRouter.get('/', async (req, res) => {
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const result = await pool.query(`SELECT * FROM products ${where} ORDER BY created_at DESC`, params);
   res.json(result.rows.map(toProductViewModel));
-});
+}));
 
-productsRouter.get('/:id', async (req, res) => {
+productsRouter.get('/:id', asyncHandler(async (req, res) => {
   const result = await pool.query('SELECT * FROM products WHERE id = $1', [req.params.id]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Producto no encontrado.' });
   res.json(toProductViewModel(result.rows[0]));
-});
+}));
 
 // GET /api/products/mine/list — inventario completo de la tienda del
 // vendedor autenticado (incluye agotados, a diferencia del listado público
 // que igual los incluye pero esto deja claro el propósito: "mi inventario").
-productsRouter.get('/mine/list', requireAuth, requireSeller, async (req, res) => {
+productsRouter.get('/mine/list', requireAuth, requireSeller, asyncHandler(async (req, res) => {
   const storeId = await getOwnStoreId(req.auth.id);
   if (!storeId) return res.status(404).json({ error: 'Tu cuenta de vendedor no tiene una tienda asociada.' });
   const result = await pool.query('SELECT * FROM products WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
   res.json(result.rows.map(toProductViewModel));
-});
+}));
 
 function validateProductInput(body) {
   const { name, categoryId, price } = body;
@@ -87,7 +88,7 @@ function validateProductInput(body) {
 // POST /api/products — alta de producto real para la tienda del vendedor
 // autenticado. storeId nunca se toma del body: siempre se resuelve del
 // token, para que un vendedor no pueda publicar en la tienda de otro.
-productsRouter.post('/', requireAuth, requireSeller, async (req, res) => {
+productsRouter.post('/', requireAuth, requireSeller, asyncHandler(async (req, res) => {
   const error = validateProductInput(req.body || {});
   if (error) return res.status(400).json({ error });
 
@@ -110,12 +111,12 @@ productsRouter.post('/', requireAuth, requireSeller, async (req, res) => {
     ]
   );
   res.status(201).json(toProductViewModel(result.rows[0]));
-});
+}));
 
 // PATCH /api/products/:id — edición, sólo si el producto es de la tienda
 // del vendedor autenticado (verificado con un WHERE, no confiando en el
 // cliente).
-productsRouter.patch('/:id', requireAuth, requireSeller, async (req, res) => {
+productsRouter.patch('/:id', requireAuth, requireSeller, asyncHandler(async (req, res) => {
   const storeId = await getOwnStoreId(req.auth.id);
   if (!storeId) return res.status(404).json({ error: 'Tu cuenta de vendedor no tiene una tienda asociada.' });
 
@@ -151,4 +152,4 @@ productsRouter.patch('/:id', requireAuth, requireSeller, async (req, res) => {
     ]
   );
   res.json(toProductViewModel(result.rows[0]));
-});
+}));

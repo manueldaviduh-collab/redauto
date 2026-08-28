@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { pool } from '../db.js';
 import { signToken, requireAuth } from '../middleware/auth.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 
 export const authRouter = Router();
 
@@ -86,7 +87,7 @@ authRouter.post('/register', async (req, res) => {
   }
 });
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', asyncHandler(async (req, res) => {
   const { email, password } = req.body || {};
   const emailNorm = String(email || '').toLowerCase().trim();
 
@@ -100,13 +101,13 @@ authRouter.post('/login', async (req, res) => {
   const storeResult = await pool.query('SELECT * FROM stores WHERE owner_user_id = $1', [user.id]);
   const token = signToken(user);
   res.json({ token, user: publicUser(user), store: publicStore(storeResult.rows[0]) });
-});
+}));
 
-authRouter.get('/me', requireAuth, async (req, res) => {
+authRouter.get('/me', requireAuth, asyncHandler(async (req, res) => {
   const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.auth.id]);
   const user = result.rows[0];
   if (!user) return res.status(404).json({ error: 'Cuenta no encontrada.' });
 
   const storeResult = await pool.query('SELECT * FROM stores WHERE owner_user_id = $1', [user.id]);
   res.json({ user: publicUser(user), store: publicStore(storeResult.rows[0]) });
-});
+}));

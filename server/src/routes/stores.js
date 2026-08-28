@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 
 export const storesRouter = Router();
 
@@ -45,13 +46,13 @@ async function withExtras(row) {
   return toStoreViewModel(row, { productCount: products.rowCount, categories });
 }
 
-storesRouter.get('/', async (req, res) => {
+storesRouter.get('/', asyncHandler(async (req, res) => {
   const result = await pool.query("SELECT * FROM stores WHERE verification_status = 'verificada' ORDER BY created_at DESC");
   res.json(await Promise.all(result.rows.map(withExtras)));
-});
+}));
 
-storesRouter.get('/:id', async (req, res) => {
+storesRouter.get('/:id', asyncHandler(async (req, res) => {
   const result = await pool.query('SELECT * FROM stores WHERE id = $1', [req.params.id]);
   if (!result.rows[0]) return res.status(404).json({ error: 'Tienda no encontrada.' });
   res.json(await withExtras(result.rows[0]));
-});
+}));
