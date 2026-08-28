@@ -18,9 +18,14 @@ function publicStore(row) {
     id: row.id,
     ownerUserId: row.owner_user_id,
     name: row.name,
+    rif: row.rif,
+    responsibleName: row.responsible_name,
     city: row.city,
+    state: row.state,
     address: row.address,
     phone: row.phone,
+    whatsapp: row.whatsapp,
+    logoUrl: row.logo_url,
     about: row.about,
     verificationStatus: row.verification_status,
     createdAt: row.created_at,
@@ -31,8 +36,17 @@ function publicStore(row) {
 // Sin storeName -> cuenta de comprador. Con storeName -> cuenta de
 // vendedor + su tienda, creadas en la misma transacción. Este es el
 // mecanismo real (no una demo) para que una tienda real se dé de alta.
+//
+// La tienda queda SIEMPRE en verification_status='pendiente' — ya no se
+// auto-verifica (ver docs/ROADMAP.md, Etapa 2). Mientras está pendiente,
+// GET /api/stores no la muestra a compradores, pero el vendedor ya puede
+// entrar a su panel y cargar su inventario completo (individual o por
+// Excel) mientras espera aprobación — así no pierde tiempo.
 authRouter.post('/register', async (req, res) => {
-  const { name, email, password, phone, city, storeName } = req.body || {};
+  const {
+    name, email, password, phone, city, storeName,
+    rif, responsibleName, whatsapp, address, state, categoryIds,
+  } = req.body || {};
 
   if (!name || String(name).trim().length < 2) {
     return res.status(400).json({ error: 'Ingresa tu nombre completo.' });
@@ -45,6 +59,23 @@ authRouter.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres.' });
   }
   const wantsStore = !!(storeName && String(storeName).trim().length >= 2);
+  if (wantsStore) {
+    if (!rif || String(rif).trim().length < 3) {
+      return res.status(400).json({ error: 'Ingresa el RIF de la empresa.' });
+    }
+    if (!responsibleName || String(responsibleName).trim().length < 2) {
+      return res.status(400).json({ error: 'Ingresa el nombre del responsable de la tienda.' });
+    }
+    if (!address || String(address).trim().length < 3) {
+      return res.status(400).json({ error: 'Ingresa la dirección de la tienda.' });
+    }
+    if (!city || !String(city).trim()) {
+      return res.status(400).json({ error: 'Ingresa la ciudad de la tienda.' });
+    }
+    if (!state || !String(state).trim()) {
+      return res.status(400).json({ error: 'Ingresa el estado de la tienda.' });
+    }
+  }
 
   const client = await pool.connect();
   try {
@@ -68,11 +99,26 @@ authRouter.post('/register', async (req, res) => {
     let store = null;
     if (wantsStore) {
       const storeResult = await client.query(
-        `INSERT INTO stores (owner_user_id, name, city, phone)
-         VALUES ($1, $2, $3, $4) RETURNING *`,
-        [user.id, String(storeName).trim(), city || null, phone || null]
+        `INSERT INTO stores (owner_user_id, name, rif, responsible_name, city, state, address, phone, whatsapp, verification_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pendiente') RETURNING *`,
+        [
+          user.id, String(storeName).trim(), String(rif).trim(), String(responsibleName).trim(),
+          String(city).trim(), String(state).trim(), String(address).trim(),
+          phone || null, whatsapp || null,
+        ]
       );
       store = storeResult.rows[0];
+
+      const ids = Array.isArray(categoryIds) ? categoryIds.filter(Boolean) : [];
+      if (ids.length) {
+        const validCategories = await client.query('SELECT id FROM categories WHERE id = ANY($1)', [ids]);
+        for (const row of validCategories.rows) {
+          await client.query(
+            'INSERT INTO store_categories (store_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [store.id, row.id]
+          );
+        }
+      }
     }
 
     await client.query('COMMIT');

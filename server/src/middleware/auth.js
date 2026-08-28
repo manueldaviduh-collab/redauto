@@ -36,3 +36,14 @@ export function requireSeller(req, res, next) {
   }
   next();
 }
+
+// Nadie tiene este rol por defecto — se asigna a mano (ver server/README.md,
+// "Aprobar una tienda"). Sin panel de administración todavía (ver
+// docs/ROADMAP.md, Etapa 2): este endpoint existe para cuando lo haya, y
+// mientras tanto el fundador aprueba tiendas directo por SQL.
+export function requireAdmin(req, res, next) {
+  if (req.auth?.role !== 'admin') {
+    return res.status(403).json({ error: 'Esta acción requiere una cuenta de administrador.' });
+  }
+  next();
+}

@@ -221,13 +221,16 @@ frontend con un backend real, ver §10.)*
 ## 7. Base de datos
 
 **Ya existe una base de datos real** (PostgreSQL, esquema en
-[`server/src/schema.sql`](../server/src/schema.sql)) para `users`,
-`categories`, `stores` y `products` — el subconjunto necesario para que
-una tienda real se registre y publique productos. Es deliberadamente más
-chica que el esquema objetivo completo (sin `product_images`,
-`order_items`, `reviews`, `vehicle_brands`/`vehicle_models`, etc.) porque
-la tarea que la creó tenía alcance acotado a "registro + alta de
-productos", no a migrar todo de una vez.
+[`server/src/schema.sql`](../server/src/schema.sql)) con siete tablas:
+`users`, `categories`, `stores`, `store_categories`, `products`,
+`product_compatibility` y `product_images` — el subconjunto necesario para
+que una tienda real se registre (con toda su info fiscal/de contacto),
+quede pendiente de verificación, y cargue su inventario completo —a mano o
+por Excel— con compatibilidad de vehículos real, no un valor de relleno.
+Sigue siendo más chica que el esquema objetivo completo (sin `order_items`,
+`reviews`, `vehicle_brands`/`vehicle_models` como catálogo cerrado, etc.)
+porque cada tarea que la amplió tuvo un alcance acotado, no migró todo de
+una vez.
 
 Lo que **todavía no tiene tabla real** — carrito, pedidos, favoritos,
 garage de vehículos, notificaciones, reseñas — sigue como arrays en
@@ -272,12 +275,24 @@ body del request — así un vendedor no puede escribir en el inventario de
 otra tienda aunque intente mandar un `storeId` ajeno a mano (ver
 `server/src/routes/products.js`, `getOwnStoreId`).
 
+**Verificación de tienda:** toda tienda que se autorregistra queda
+`verification_status: 'pendiente'` — ya no se auto-verifica. `GET
+/api/stores` y `GET /api/products` sólo devuelven tiendas/productos de
+tiendas `'verificada'`; una tienda pendiente puede cargar su inventario
+completo mientras espera, pero no aparece en el catálogo público hasta que
+se aprueba. La aprobación es un tercer rol, `admin` (nadie lo tiene por
+defecto), que puede aprobar/rechazar por `PATCH
+/api/stores/:id/verification` — hoy sin panel de administración con
+interfaz, se asigna el rol y se aprueba por SQL directo (ver
+`server/README.md`, "Aprobar una tienda"). Es KYC real en el sentido de
+que un humano revisa antes de publicar, pero manual — automatizarlo (subida
+de documentos, historial de revisión) es `store_verification_requests` en
+`BASE_DE_DATOS.md` §4.1, todavía objetivo.
+
 **Lo que falta antes de un volumen/sensibilidad mayores** (ver
 `server/README.md`, sección de seguridad, y `ROADMAP.md`): límite de
-intentos de login (rate limiting), verificación real de tienda — hoy toda
-tienda que se registra queda `verificación: verificada` automáticamente,
-una simplificación deliberada del piloto (self-service sin fricción para
-el fundador), no un descuido de seguridad. Row Level Security (RLS) de
+intentos de login (rate limiting), un panel de administración con interfaz
+para aprobar tiendas en vez de SQL directo. Row Level Security (RLS) de
 Postgres sigue siendo una capa adicional razonable si en algún momento se
 migra a Supabase o se agregan más roles/endpoints donde sea fácil
 olvidarse de un `if` de autorización en el código de la API.
@@ -298,9 +313,13 @@ vendedor — ver `ROADMAP.md`, Etapa 1 en adelante):**
 - Object storage administrado (**Supabase Storage** si se usa Supabase
   para el resto del backend, o S3/Cloudinary si no) — no servir imágenes
   desde el propio servidor de la aplicación.
-- Tabla `product_images` ya diseñada en `BASE_DE_DATOS.md` (una fila por
-  imagen, con `position` para el orden de la galería) — el panel de
-  vendedor sube 1–5 fotos por producto, no una foto obligatoria única.
+- Tabla `product_images` **ya implementada** (una fila por imagen, con
+  `position` para el orden de la galería), vacía hasta que exista el
+  endpoint de subida — el panel de vendedor sube 1–5 fotos por producto,
+  no una foto obligatoria única. Diseño completo, incluida la importación
+  masiva de fotos (ZIP o URLs por columna en el Excel), ya escrito en
+  `BASE_DE_DATOS.md` §4.1 — falta conectar el proveedor de storage, no
+  diseñarlo.
 - Límite de tamaño razonable por imagen (ej. 5 MB) validado en el cliente
   antes de subir, y conversión a un formato liviano (WebP) — puede hacerlo
   el propio servicio de storage (Supabase/Cloudinary transforman al

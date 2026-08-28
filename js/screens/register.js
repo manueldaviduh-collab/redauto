@@ -1,8 +1,10 @@
 import { icon } from '../ui/icons.js';
-import { backHeaderHtml } from '../ui/components.js';
+import { backHeaderHtml, escapeHtml } from '../ui/components.js';
 import { authService } from '../services/authService.js';
 import { navigate } from '../nav.js';
 import { showToast } from '../ui/toast.js';
+import { categories } from '../data/categories.js';
+import { venezuelaStates } from '../data/venezuelaStates.js';
 
 export async function render(container, { query }) {
   const next = query.next || '/';
@@ -42,10 +44,44 @@ export async function render(container, { query }) {
           <input type="checkbox" id="wants-store" name="wantsStore" />
           <span>Quiero vender en RedAuto (registrar mi tienda)</span>
         </label>
-        <label class="field" id="store-name-field" hidden>
-          <span class="field__label">Nombre de tu tienda</span>
-          <input type="text" name="storeName" minlength="2" placeholder="Ej. Repuestos Duarte C.A." />
-        </label>
+
+        <div id="store-fields" hidden>
+          <p class="trust-line trust-line--tight">${icon('info', { size: 15 })} Tu tienda queda pendiente de verificación — un administrador la revisa antes de que sea visible para compradores. Mientras tanto ya puedes cargar tu inventario completo.</p>
+          <label class="field">
+            <span class="field__label">Nombre de tu tienda</span>
+            <input type="text" name="storeName" minlength="2" placeholder="Ej. Repuestos Duarte C.A." />
+          </label>
+          <label class="field">
+            <span class="field__label">RIF</span>
+            <input type="text" name="rif" placeholder="J-12345678-9" />
+          </label>
+          <label class="field">
+            <span class="field__label">Nombre del responsable</span>
+            <input type="text" name="responsibleName" placeholder="Nombre y apellido" />
+          </label>
+          <label class="field">
+            <span class="field__label">WhatsApp</span>
+            <input type="tel" name="whatsapp" placeholder="+58 412-0000000" />
+          </label>
+          <label class="field">
+            <span class="field__label">Dirección</span>
+            <input type="text" name="address" placeholder="Av., calle, local…" />
+          </label>
+          <p class="field-hint">Usamos la Ciudad que pusiste arriba también como ciudad de la tienda.</p>
+          <label class="field">
+            <span class="field__label">Estado</span>
+            <select name="state">
+              <option value="">Selecciona estado</option>
+              ${venezuelaStates.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+            </select>
+          </label>
+          <div class="field">
+            <span class="field__label">Categorías de productos que vende</span>
+            <div class="filters-form__pills" id="register-category-pills">
+              ${categories.map((c) => `<button type="button" class="pill" data-category-id="${c.id}">${escapeHtml(c.name)}</button>`).join('')}
+            </div>
+          </div>
+        </div>
 
         <p class="field-error" id="register-error" hidden></p>
         <button type="submit" class="btn btn--primary btn--block">Crear cuenta</button>
@@ -58,12 +94,27 @@ export async function render(container, { query }) {
   bindBack(container);
 
   const wantsStoreCheckbox = container.querySelector('#wants-store');
-  const storeNameField = container.querySelector('#store-name-field');
-  const storeNameInput = storeNameField.querySelector('input[name="storeName"]');
+  const storeFields = container.querySelector('#store-fields');
+  const storeNameInput = storeFields.querySelector('input[name="storeName"]');
   wantsStoreCheckbox?.addEventListener('change', () => {
-    storeNameField.hidden = !wantsStoreCheckbox.checked;
+    storeFields.hidden = !wantsStoreCheckbox.checked;
     storeNameInput.required = wantsStoreCheckbox.checked;
     if (!wantsStoreCheckbox.checked) storeNameInput.value = '';
+  });
+
+  const categoryPills = container.querySelector('#register-category-pills');
+  const selectedCategoryIds = new Set();
+  categoryPills?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-category-id]');
+    if (!btn) return;
+    const id = btn.dataset.categoryId;
+    if (selectedCategoryIds.has(id)) {
+      selectedCategoryIds.delete(id);
+      btn.classList.remove('is-selected');
+    } else {
+      selectedCategoryIds.add(id);
+      btn.classList.add('is-selected');
+    }
   });
 
   container.querySelector('#register-form')?.addEventListener('submit', async (e) => {
@@ -79,10 +130,22 @@ export async function render(container, { query }) {
       return;
     }
     const wantsStore = wantsStoreCheckbox?.checked;
-    if (wantsStore && !String(data.get('storeName') || '').trim()) {
-      errorEl.textContent = 'Ingresa el nombre de tu tienda.';
-      errorEl.hidden = false;
-      return;
+    if (wantsStore) {
+      const required = {
+        storeName: 'Ingresa el nombre de tu tienda.',
+        rif: 'Ingresa el RIF de tu tienda.',
+        responsibleName: 'Ingresa el nombre del responsable.',
+        address: 'Ingresa la dirección de tu tienda.',
+        city: 'Ingresa la ciudad.',
+        state: 'Selecciona el estado.',
+      };
+      for (const [field, message] of Object.entries(required)) {
+        if (!String(data.get(field) || '').trim()) {
+          errorEl.textContent = message;
+          errorEl.hidden = false;
+          return;
+        }
+      }
     }
 
     const submitBtn = form.querySelector('button[type="submit"]');
@@ -94,6 +157,12 @@ export async function render(container, { query }) {
       phone: data.get('phone'),
       city: data.get('city'),
       storeName: wantsStore ? data.get('storeName') : undefined,
+      rif: wantsStore ? data.get('rif') : undefined,
+      responsibleName: wantsStore ? data.get('responsibleName') : undefined,
+      whatsapp: wantsStore ? data.get('whatsapp') : undefined,
+      address: wantsStore ? data.get('address') : undefined,
+      state: wantsStore ? data.get('state') : undefined,
+      categoryIds: wantsStore ? [...selectedCategoryIds] : undefined,
     });
     submitBtn.disabled = false;
 

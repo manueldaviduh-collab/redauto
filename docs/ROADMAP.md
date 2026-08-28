@@ -91,9 +91,17 @@ personalmente, sin que el fundador tenga que cargar cada catálogo a mano.
   más de un cambio por semana tocando el mismo código; sin una suite
   real, algo se rompe sin que nadie lo note hasta que un usuario real se
   queja.
-- Verificación de tienda sigue siendo automática al registrarse (no
-  manual ni con flujo de revisión todavía) — ver
-  `store_verification_requests` en `BASE_DE_DATOS.md` §4.
+- ✅ Verificación de tienda ya no es automática: toda tienda nueva queda
+  `pendiente` y sólo un admin la aprueba (SQL/API directo, ver
+  `server/README.md`) para que se vuelva visible a compradores. Sigue sin
+  panel de administración con interfaz ni subida de documentos — eso es
+  `store_verification_requests`, todavía objetivo (`BASE_DE_DATOS.md`
+  §4.1).
+- ✅ Compatibilidad de vehículos real (`product_compatibility`) y
+  **importación masiva de productos por Excel** (plantilla, validación por
+  fila, re-importar actualiza sin duplicar) — no estaban en el plan
+  original de esta etapa, se adelantaron porque una tienda con cientos o
+  miles de productos no puede cargarlos uno por uno a mano.
 - Desplegar `server/` en algún lugar alcanzable por usuarios reales fuera
   de esta sandbox de desarrollo (ver `server/README.md`, sección de
   despliegue) — hoy corre local/efímero, el código ya está listo para
@@ -112,12 +120,21 @@ de pedidos hace que confirmar pagos uno por uno deje de ser sostenible.
 **Objetivo:** que una tienda nueva pueda registrarse, pedir verificación y
 empezar a vender sin que el fundador intervenga manualmente en cada paso.
 
-**Qué se construye:**
-- Registro de tienda self-service (formulario + subida de documentos →
-  `store_verification_requests`), con un panel simple de administración
-  para aprobar/rechazar (aunque quien apruebe siga siendo una persona, no
-  un proceso automático — automatizar KYC de verdad es un problema aparte,
-  no crítico todavía).
+**Ya construido (adelantado desde Etapa 1, ver arriba):** registro de
+tienda self-service con RIF/responsable/WhatsApp/dirección/estado/
+categorías, verificación real (pendiente por defecto, un admin aprueba),
+compatibilidad de vehículos real, e importación masiva por Excel.
+
+**Qué falta todavía dentro de esta etapa:**
+- Subida de documentos reales para la solicitud (`store_verification_requests`,
+  ver `BASE_DE_DATOS.md` §4.1) y un panel de administración **con
+  interfaz** para aprobar/rechazar — hoy quien aprueba sigue siendo el
+  fundador, pero por SQL/API directo, no desde una pantalla (aunque quien
+  apruebe siga siendo una persona, no un proceso automático —
+  automatizar KYC de verdad es un problema aparte, no crítico todavía).
+- Subida real de fotos de producto (diseño completo en `BASE_DE_DATOS.md`
+  §4.1, falta conectar un proveedor de almacenamiento — ver
+  `ARQUITECTURA.md` §9).
 - Reseñas reales de compradores, ligadas a `order_id` (solo quien compró
   puede reseñar — ver `BASE_DE_DATOS.md` §3).
 - Notificaciones reales (al menos email; push si aplica), reemplazando los

@@ -1,4 +1,3 @@
-import { storeService } from './storeService.js';
 import { orderService } from './orderService.js';
 import { api } from './api.js';
 
@@ -10,8 +9,12 @@ import { api } from './api.js';
 // mostrarlo.
 export const sellerService = {
   async getDashboard(storeId) {
+    // /stores/mine (no /stores/:id) porque muestra la tienda del vendedor
+    // sin importar su estado de verificación — el panel tiene que poder
+    // mostrar "pendiente" mientras un admin la revisa (ver
+    // server/src/routes/stores.js).
     const [store, products, orders] = await Promise.all([
-      storeService.getById(storeId),
+      api.get('/stores/mine', { auth: true }),
       api.get('/products/mine/list', { auth: true }),
       orderService.getOrdersForStore(storeId),
     ]);
@@ -39,5 +42,9 @@ export const sellerService = {
 
   async updateProduct(productId, patch) {
     return api.patch(`/products/${productId}`, patch, { auth: true });
+  },
+
+  async updateStore(patch) {
+    return api.patch('/stores/mine', patch, { auth: true });
   },
 };

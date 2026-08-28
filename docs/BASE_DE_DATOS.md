@@ -15,8 +15,8 @@ verificó al implementar la primera porción.
 |---|---|---|
 | Categorías | PostgreSQL (`server/`) | Real — única siembra del esquema, es taxonomía fija, no datos ficticios |
 | Cuentas de usuario / autenticación | PostgreSQL (`server/`) | Real — contraseñas con `bcrypt`, sesión con JWT (ver `ARQUITECTURA.md` §8) |
-| Tiendas | PostgreSQL (`server/`) | Real — se crean únicamente vía registro de vendedor en la app, cero tiendas de muestra insertadas por script |
-| Productos | PostgreSQL (`server/`) | Real — se crean únicamente desde el panel de vendedor, siempre resolviendo la tienda dueña desde el token (nunca del body) |
+| Tiendas | PostgreSQL (`server/`) | Real — RIF, responsable, WhatsApp, dirección, estado, categorías; quedan **pendientes de verificación**, no se auto-publican |
+| Productos + compatibilidad de vehículos | PostgreSQL (`server/`) | Real — a mano o por importación masiva de Excel; compatibilidad (marca/modelo/año/motor/versión) obligatoria y real, ya no un default "Universal" |
 | Carrito | `localStorage` | Simulado — pendiente de migrar a `orders`/checkout real |
 | Pedidos / "Mis pedidos" | `localStorage` + datos de muestra (`js/data/users.js: demoOrders`) | Simulado |
 | Favoritos (productos y tiendas) | `localStorage` | Simulado — no bloquea negocio, ver §6 |
@@ -35,9 +35,11 @@ ese catálogo de muestra.
 
 ## 2. Esquema implementado hoy (PostgreSQL, `server/src/schema.sql`)
 
-Cuatro tablas, deliberadamente el subconjunto mínimo para "una empresa
-real se registra y publica productos" — no el esquema objetivo completo
-(§4) todavía.
+Siete tablas — el subconjunto necesario para "una empresa real se
+registra, carga su inventario completo (a mano o por Excel) con
+compatibilidad de vehículos real, y un admin la aprueba antes de que sea
+pública". `product_images` ya existe en el esquema pero vacía todavía (ver
+§4 y `ARQUITECTURA.md` §9 para por qué).
 
 ```
 users
@@ -46,7 +48,10 @@ users
 ├─ email            text  -- único, case-insensitive (índice sobre LOWER(email))
 ├─ password_hash      text  -- bcrypt, nunca texto plano
 ├─ phone, city          text NULL
-├─ role                   text  CHECK IN ('comprador','vendedor')
+├─ role                   text  CHECK IN ('comprador','vendedor','admin')
+│                            -- 'admin' se agregó para aprobar tiendas (ver
+│                            -- server/README.md, "Aprobar una tienda") —
+│                            -- nadie lo tiene por defecto, se asigna a mano
 └─ created_at                timestamptz
 
 categories                          -- única tabla con datos sembrados
@@ -57,13 +62,22 @@ categories                          -- única tabla con datos sembrados
 stores
 ├─ id                   uuid PK
 ├─ owner_user_id          uuid FK → users.id   -- UNIQUE: 1 usuario = máximo 1 tienda propia
-├─ name, city, address, phone, about  text NULL
+├─ name, rif, responsible_name             text NULL
+├─ city, state, address, phone, whatsapp     text NULL
+├─ logo_url                                    text NULL  -- listo para cuando haya subida real de logo
+├─ about                                          text NULL
 ├─ verification_status      text  CHECK IN ('pendiente','verificada','rechazada')
-│                              -- default 'verificada': toda tienda que se
-│                              -- autorregistra queda verificada automáticamente
-│                              -- hoy — simplificación deliberada del piloto,
-│                              -- no un KYC real (ver ARQUITECTURA.md §8)
+│                              -- default 'pendiente': toda tienda que se
+│                              -- autorregistra queda pendiente hasta que un
+│                              -- admin la aprueba a mano — GET /api/stores y
+│                              -- GET /api/products solo muestran tiendas
+│                              -- 'verificada' (ver server/README.md)
 └─ created_at                    timestamptz
+
+store_categories                    -- categorías que la tienda declara
+├─ store_id     uuid FK → stores.id     vender al registrarse, antes incluso
+└─ category_id   text FK → categories.id de tener productos cargados
+PK (store_id, category_id)
 
 products
 ├─ id                     uuid PK
@@ -72,23 +86,33 @@ products
 ├─ name, part_brand, sku        text
 ├─ type                            text  CHECK IN ('original','alternativo')
 ├─ description                       text NULL
-├─ price_cents                         int  CHECK >= 0        -- entero, nunca float (ver §5)
-├─ original_price_cents                  int NULL CHECK >= price_cents
-├─ stock                                    int  CHECK >= 0
-├─ availability                                text CHECK IN ('en_stock','bajo_pedido','agotado')
-├─ created_at, updated_at                        timestamptz
+├─ internal_location                   text NULL  -- ubicación en el almacén, solo la ve el vendedor
+├─ price_cents                           int  CHECK >= 0        -- entero, nunca float (ver §5)
+├─ original_price_cents                    int NULL CHECK >= price_cents
+├─ stock                                      int  CHECK >= 0
+├─ availability                                  text CHECK IN ('en_stock','bajo_pedido','agotado')
+├─ created_at, updated_at                          timestamptz
 INDEX (store_id), INDEX (category_id)
-```
+UNIQUE (store_id, sku) WHERE sku IS NOT NULL  -- permite reimportar el mismo
+                                               -- Excel sin duplicar productos
 
-No existe todavía `product_images` (fotos van como ilustración SVG
-generada en cliente, ver `ARQUITECTURA.md` §9), ni `product_compatibility`
-como tabla propia (el formulario del panel de vendedor no captura
-compatibilidad por vehículo todavía — cada producto nuevo recibe un valor
-por defecto "Universal / Todas / 2000–2026" en la vista que consume el
-frontend, ver `toProductViewModel` en `server/src/routes/products.js`).
-Ninguna de las dos bloquea el objetivo de esta etapa (registrar tienda +
-publicar producto); se agregan cuando el panel de vendedor capture esos
-datos de verdad.
+product_compatibility          -- una fila por cada vehículo compatible;
+├─ id                uuid PK      un producto puede tener varias
+├─ product_id          FK → products.id
+├─ vehicle_brand, vehicle_model      text NOT NULL
+├─ year_from, year_to                  int NULL
+├─ engine, vehicle_trim                  text NULL
+└─ created_at                               timestamptz
+INDEX (product_id), INDEX (vehicle_brand, vehicle_model)
+
+product_images                 -- existe, pero vacía: sin proveedor de
+├─ id            uuid PK           almacenamiento conectado todavía (ver §4)
+├─ product_id      FK → products.id
+├─ url               text NOT NULL
+├─ position             int  -- orden de la galería, 0 = foto principal
+└─ created_at              timestamptz
+INDEX (product_id)
+```
 
 ## 3. Lo que todavía vive en `localStorage`
 
@@ -123,7 +147,7 @@ columnas todavía no necesarias, ver diffs anotados); el resto es el
 objetivo para las siguientes etapas (`ROADMAP.md`).
 
 ```
-users                     ✅ implementada (versión más chica: sin columna role='admin' todavía)
+users                     ✅ implementada (incluye role='admin', ver server/README.md)
 ├─ id                 uuid PK
 ├─ name                text
 ├─ email                citext UNIQUE
@@ -133,22 +157,25 @@ users                     ✅ implementada (versión más chica: sin columna rol
 ├─ role                      enum('comprador','vendedor','admin')
 └─ created_at                 timestamptz
 
-stores                   ✅ implementada (versión más chica: sin slug/whatsapp/hours/
-├─ id                        response_time/logo/cover/campos cacheados todavía)
-├─ owner_user_id        uuid FK → users.id
-├─ name                   text
-├─ slug                    text UNIQUE        -- para URLs /tienda/:slug
-├─ city, address, phone     text
-├─ whatsapp                  text NULL
-├─ hours                      text
-├─ response_time_minutes       int NULL
-├─ verification_status          enum('pendiente','en_revision','verificada','rechazada')
-├─ verified_since                 date NULL
+stores                   ✅ implementada (versión más chica: sin slug/hours/
+├─ id                        response_time/cover/campos cacheados todavía;
+├─ owner_user_id        uuid FK → users.id   rif/responsible_name sí están, no en el diseño original)
+├─ name, rif, responsible_name   text
+├─ slug                    text UNIQUE        -- objetivo, no implementado: URLs /tienda/:slug
+├─ city, state, address, phone, whatsapp  text
+├─ hours                      text                -- objetivo, no implementado
+├─ response_time_minutes       int NULL              -- objetivo, no implementado
+├─ verification_status          enum('pendiente','verificada','rechazada')  -- default 'pendiente' ✅
 ├─ about                            text
-├─ logo_url, cover_url               text NULL
+├─ logo_url                           text NULL  -- columna lista; sin subida real todavía (ver §4.1)
+├─ cover_url                             text NULL  -- objetivo, no implementado
 ├─ rating_cached, reviews_count_cached, sales_count_cached, on_time_delivery_pct
-│                                      -- cachés denormalizados; fuente de verdad = reviews/orders
+│                                      -- objetivo, no implementado: hoy la API devuelve 0/null honesto
 └─ created_at                          timestamptz
+
+store_categories          ✅ implementada — categorías que la tienda declara vender al registrarse
+├─ store_id   FK → stores.id
+└─ category_id FK → categories.id
 
 categories                ✅ implementada (versión más chica: id text en vez de uuid+slug)
 ├─ id     uuid PK
@@ -157,39 +184,46 @@ categories                ✅ implementada (versión más chica: id text en vez 
 └─ icon      text
 
 vehicle_brands            vehicle_models              -- objetivo, no implementado:
-├─ id  uuid PK             ├─ id         uuid PK          hoy no hay catálogo
-└─ name text UNIQUE         ├─ brand_id    FK → vehicle_brands.id   estructurado de marca/
-                             └─ name         text                    modelo en backend
+├─ id  uuid PK             ├─ id         uuid PK          product_compatibility ya es real
+└─ name text UNIQUE         ├─ brand_id    FK → vehicle_brands.id   (ver abajo) pero marca/modelo
+                             └─ name         text                    son texto libre, no FK a un
+                                                                       catálogo cerrado — decisión
+                                                                       deliberada, ver §5
 
-products                 ✅ implementada (versión más chica: sin currency,
-├─ id                        sin product_images/product_compatibility como tablas)
+products                 ✅ implementada (versión más chica: sin currency)
+├─ id
 ├─ store_id              FK → stores.id
 ├─ category_id            FK → categories.id
 ├─ name, part_brand, sku    text
 ├─ type                       enum('original','alternativo')
 ├─ description                  text
+├─ internal_location              text NULL  -- ubicación en almacén, solo la ve el vendedor
 ├─ price_cents, original_price_cents_nullable   int   -- SIEMPRE enteros, nunca float (ver §5)
-├─ currency                        char(3) default 'USD'
+├─ currency                        char(3) default 'USD'  -- objetivo, no implementado (todo es USD hoy)
 ├─ stock                            int
 ├─ availability                      enum('en_stock','bajo_pedido','agotado')
 ├─ created_at, updated_at              timestamptz
 INDEX (store_id), INDEX (category_id), INDEX (availability)
+UNIQUE (store_id, sku) WHERE sku IS NOT NULL  -- para que reimportar el mismo Excel actualice, no duplique
 
-product_images             -- objetivo, no implementado: fotos siguen siendo
-├─ id          uuid PK         ilustración SVG generada en cliente (ARQUITECTURA.md §9)
-├─ product_id   FK → products.id
+product_images             ✅ implementada — tabla lista y en uso por la API,
+├─ id          uuid PK         pero vacía: sin proveedor de almacenamiento de
+├─ product_id   FK → products.id  imágenes conectado todavía (ver §4.1 y ARQUITECTURA.md §9)
 ├─ url            text
 └─ position         int             -- orden de la galería
 
-product_compatibility        -- objetivo, no implementado: el formulario del panel
-├─ id                            de vendedor no captura compatibilidad por vehículo
-├─ product_id          FK → products.id       todavía (cada producto nuevo queda
-├─ vehicle_brand_id      FK → vehicle_brands.id NULL   "Universal / Todas" por defecto)
-├─ vehicle_model_id        FK → vehicle_models.id NULL
-├─ year_from, year_to        int
-INDEX (vehicle_brand_id, vehicle_model_id, year_from, year_to)
+product_compatibility        ✅ implementada — obligatoria al crear un producto
+├─ id                            (a mano o por Excel), reemplazó el default
+├─ product_id          FK → products.id       "Universal / Todas" que se usaba antes
+├─ vehicle_brand, vehicle_model      text NOT NULL  -- texto libre, no FK (ver arriba)
+├─ year_from, year_to        int NULL
+├─ engine, vehicle_trim        text NULL
+INDEX (product_id), INDEX (vehicle_brand, vehicle_model)
                               -- la consulta más caliente de toda la app: "qué
                               -- productos sirven para esta marca/modelo/año"
+
+-- (ver §4.1 más abajo para el diseño de subida real de fotos y su
+-- importación masiva, ambas sobre esta misma tabla product_images)
 
 user_vehicles                                       -- objetivo, no implementado:
 ├─ id             uuid PK                              "Mis Vehículos" sigue en
@@ -238,15 +272,52 @@ notifications                          -- objetivo, no implementado
 └─ created_at                timestamptz
 INDEX (user_id, read_at)
 
-store_verification_requests            -- objetivo, no implementado: hoy toda
-├─ id             uuid PK                  tienda queda "verificada" automáticamente
-├─ store_id         FK → stores.id            al registrarse (ver §2 y ARQUITECTURA.md §8)
-├─ document_urls[]     text[]
-├─ status                enum('pendiente','en_revision','aprobada','rechazada')
-├─ reviewed_by NULL         FK → users.id
-├─ reviewed_at NULL            timestamptz
+store_verification_requests            -- objetivo, no implementado: hoy la
+├─ id             uuid PK                  aprobación es un solo campo
+├─ store_id         FK → stores.id            (stores.verification_status) que
+├─ document_urls[]     text[]                    cambia un admin a mano por SQL/API
+├─ status                enum('pendiente','en_revision','aprobada','rechazada')  (ver server/README.md) — sin
+├─ reviewed_by NULL         FK → users.id           subida de documentos ni historial
+├─ reviewed_at NULL            timestamptz             de revisión todavía
 └─ notes                          text NULL
 ```
+
+### 4.1. Diseño (sin implementar) — subida real de fotos y su importación masiva
+
+`product_images` ya existe y la API ya la lee/devuelve (§2) — lo único que
+falta es *quién escribe filas ahí*. Diseño para cuando se conecte un
+proveedor de almacenamiento (Cloudinary es el candidato más simple —
+`ARQUITECTURA.md` §9 y `DECISIONES.md` ya lo señalan como la opción sin
+Supabase):
+
+- **Subida individual** (panel de vendedor, un producto a la vez):
+  `POST /api/products/:id/images` recibe un archivo (`multipart/form-data`,
+  igual que ya hace `POST /api/products/import/preview` con Excel — mismo
+  patrón, `multer` en memoria, nunca a disco). El handler sube el buffer al
+  proveedor de storage, y solo si eso responde bien inserta la fila en
+  `product_images` con la URL real que devuelva. `DELETE
+  /api/products/:id/images/:imageId` y `PATCH .../images/:imageId`
+  (reordenar, cambiar `position`) completan el CRUD.
+- **Importación masiva** (la pieza que pide el punto 6 del pedido de
+  onboarding): dos variantes, ambas escriben sobre la misma tabla:
+  - **ZIP con imágenes**: el nombre de archivo dentro del ZIP es el SKU
+    (`UI-001.jpg`, `UI-001-2.jpg` para una segunda foto del mismo
+    producto) — el backend descomprime en memoria, sube cada imagen al
+    proveedor, y asocia por SKU al producto ya existente de esa tienda
+    (mismo mecanismo de "agrupar por SKU" que ya usa
+    `productImportParser.js` para Excel).
+  - **URLs por columna en el Excel**: agregar una columna
+    `foto_url_1`/`foto_url_2`/... a la plantilla — el backend descarga
+    cada URL (con límite de tamaño y timeout) y la resube al proveedor
+    propio, en vez de enlazar la URL externa directo (para no depender de
+    que seguir existiendo un sitio de terceros).
+- Ninguna de las dos necesita otra tabla: la API de productos ya devuelve
+  `images: string[]` (vacío hoy, ver `toProductViewModel` en
+  `server/src/routes/products.js`) — cuando haya URLs reales ahí, conectar
+  la UI es cambiar `productTile()`
+  (`js/ui/components.js`) para usar la primera foto si existe y sólo caer
+  al SVG generado como *fallback* — sin tocar ninguna pantalla que ya
+  llama a `productTile()`.
 
 ## 5. Decisiones de diseño ya tomadas en el esquema (y por qué)
 
@@ -272,13 +343,14 @@ store_verification_requests            -- objetivo, no implementado: hoy toda
   en el `orderService.getOrdersForStore()` actual (filtra por ítem, no
   por pedido) y el esquema objetivo simplemente lo hace explícito con una
   columna en vez de un filtro en memoria.
-- **`product_compatibility` sería su propia tabla, no un JSON embebido**
-  (objetivo). Hoy vive como un array `compatibility[]` con un valor por
-  defecto fijo dentro de cada producto (§2), porque el panel de vendedor
-  no lo captura todavía. En Postgres, sacarlo a tabla propia con el
-  índice compuesto `(vehicle_brand_id, vehicle_model_id, year_from,
-  year_to)` es lo que hace que "buscar repuestos para mi Corolla 2018"
-  sea una consulta indexada en vez de un filtro sobre JSON.
+- **`product_compatibility` es su propia tabla, no un JSON embebido — ✅
+  implementada.** El objetivo de esto (§2) era que "buscar repuestos para
+  mi Corolla 2018" fuera una consulta indexada en vez de un filtro sobre
+  JSON — el índice `(vehicle_brand, vehicle_model)` ya existe, listo para
+  cuando el frontend agregue esa búsqueda del lado del comprador (hoy la
+  compatibilidad ya es real y obligatoria al cargar un producto, pero
+  "Buscar repuestos para mi auto" en `home.js` todavía filtra sobre el
+  catálogo combinado en memoria, no contra este índice).
 - **Reseñas ligadas a `order_id`** (objetivo). Para que "reseña
   verificada" signifique algo real (solo quien compró puede reseñar), no
   un campo de texto libre sin respaldo.
@@ -303,9 +375,14 @@ resto, cada uno desbloquea al siguiente:
    tres pueden quedarse en `localStorage` más tiempo sin bloquear nada de
    negocio (no impiden comprar ni vender); se migran cuando el valor de
    "mis favoritos me siguen entre dispositivos" lo justifique.
-3. **`reviews` + `store_verification_requests`** — cuando el flujo de
-   reseñas de compradores reales y de verificación de tiendas reemplace a
-   los datos de muestra actuales (ver `ROADMAP.md`, Etapa 2).
+3. **`reviews`** — cuando el flujo de reseñas de compradores reales
+   reemplace a los datos de muestra actuales (ver `ROADMAP.md`, Etapa 2).
+   **`store_verification_requests`** — la aprobación de tiendas ya es real
+   (`stores.verification_status`, ver §4.1 y `server/README.md`), esta
+   tabla es para cuando ese flujo necesite subida de documentos e historial
+   de revisión en vez de un solo campo que cambia un admin a mano.
+4. **`product_images` (subida real de fotos)** — diseño completo en §4.1,
+   pendiente de conectar un proveedor de almacenamiento externo.
 4. **`product_images` + storage real** — cuando el panel de vendedor
    permita subir fotos reales (ver `ARQUITECTURA.md` §9).
 

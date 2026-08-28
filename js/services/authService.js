@@ -28,12 +28,18 @@ export const authService = {
   },
 
   // storeName es opcional: si se manda, la cuenta se crea como vendedor con
-  // su propia tienda ya asociada (ver server/src/routes/auth.js). Sin
-  // storeName, es una cuenta de comprador normal.
-  async register({ name, email, password, phone, city, storeName }) {
+  // su propia tienda ya asociada, en estado "pendiente de verificación"
+  // (ver server/src/routes/auth.js). Sin storeName, es una cuenta de
+  // comprador normal. rif/responsibleName/whatsapp/address/state/
+  // categoryIds solo aplican cuando storeName viene lleno.
+  async register({
+    name, email, password, phone, city, storeName,
+    rif, responsibleName, whatsapp, address, state, categoryIds,
+  }) {
     try {
       const { token, user, store } = await api.post('/auth/register', {
         name, email, password, phone, city, storeName,
+        rif, responsibleName, whatsapp, address, state, categoryIds,
       });
       setItem(TOKEN_KEY, token);
       setItem(SESSION_KEY, toSession(user, store));

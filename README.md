@@ -84,10 +84,19 @@ se quitaron del frontend. Para vender en RedAuto:
 1. Con el backend y el frontend corriendo, abre la app y ve a **Crear
    cuenta**.
 2. Completa tus datos, marca la casilla **"Quiero vender en RedAuto
-   (registrar mi tienda)"** y escribe el nombre de tu tienda.
+   (registrar mi tienda)"** y llena el nombre de la tienda, RIF, nombre del
+   responsable, WhatsApp, dirección, estado y las categorías que vendes.
 3. Al confirmar quedas con una cuenta de vendedor real y tu tienda creada
-   en la base de datos — la app te lleva directo al **Panel de vendedor**,
-   pestaña Inventario, donde ya puedes agregar tus productos reales.
+   en la base de datos, **pendiente de verificación** — la app te lleva
+   directo al **Panel de vendedor**, pestaña Inventario, donde ya puedes
+   cargar tus productos reales aunque la aprobación todavía no haya
+   pasado: uno por uno (con compatibilidad de vehículo obligatoria), o de
+   golpe con **Importar por Excel** (plantilla oficial descargable desde
+   el mismo botón, pensada para cientos o miles de productos).
+4. Una tienda pendiente **no aparece para compradores** hasta que se
+   aprueba — ver `server/README.md`, sección "Aprobar una tienda", para
+   cómo hacerlo (hoy es SQL/API directo, sin panel de administración con
+   interfaz todavía).
 
 Una cuenta sin marcar esa casilla queda como comprador normal (igual que
 cualquier persona real usando la app).
@@ -173,7 +182,7 @@ js/
   data/                Catálogo local de muestra (una fuente de verdad por dominio, no
                        remplaza al backend — ver services/*.js para qué ya es real)
     categories.js, vehicles.js, stores.js, products.js, users.js,
-    notifications.js, reviews.js
+    notifications.js, reviews.js, venezuelaStates.js
   services/            Capa de negocio — el único punto de acceso a los datos
     storage.js          Envoltorio sobre localStorage (namespacing + try/catch)
     api.js                Cliente HTTP hacia el backend real (fetch + JWT + errores)
@@ -186,11 +195,12 @@ js/
     favoritesService.js   Favoritos de productos y de tiendas (localStorage)
     authService.js         Cuenta y sesión reales contra el backend (JWT)
     orderService.js         Historial de pedidos + checkout (localStorage, sin pagos reales)
-    sellerService.js         Panel de vendedor: lee/escribe productos reales en el backend
+    sellerService.js         Panel de vendedor: productos, tienda, compatibilidad e import Excel reales
     notificationService.js   Centro de notificaciones (leído/no leído, localStorage)
   ui/                   Presentación reutilizable
     icons.js, productArt.js (ilustraciones de producto), components.js,
-    toast.js, modal.js, chat.js ("Preguntar a la tienda")
+    toast.js, modal.js, chat.js ("Preguntar a la tienda"),
+    productImport.js (modal de importación masiva por Excel)
   screens/              Una pantalla = una función render(container, params)
     home.js, search.js, product.js, stores.js, storeDetail.js,
     cart.js, checkout.js, login.js, register.js, profile.js, seller.js,
@@ -258,8 +268,10 @@ llamada a un backend real, no debería tocar ninguna pantalla.
     vehículos/favoritos/notificaciones.
 12. **Panel de vendedor** — sólo accesible con una cuenta de rol `vendedor`:
     resumen de ventas, pedidos de la tienda, inventario con alta/edición de
-    productos **persistidos en la base de datos real** (no en
-    `localStorage`), y estado de verificación.
+    productos (con compatibilidad de vehículo real, obligatoria) **e
+    importación masiva por Excel**, todo **persistido en la base de datos
+    real** (no en `localStorage`), edición de la info de la empresa, y
+    estado de verificación real (pendiente/verificada/rechazada).
 
 ## Qué es real, qué es simulado, y qué está listo para conectarse
 
@@ -267,16 +279,26 @@ llamada a un backend real, no debería tocar ninguna pantalla.
 muestra):**
 - Cuenta de usuario y sesión (`authService`): contraseñas con hash
   (bcrypt), sesión con JWT. Sin cuentas de demostración.
-- Registro de tienda (parte del mismo flujo de registro, con la opción
-  "Quiero vender en RedAuto").
+- Registro de tienda completo (RIF, responsable, WhatsApp, dirección,
+  estado, categorías) — parte del mismo flujo de registro, con la opción
+  "Quiero vender en RedAuto". La tienda queda **pendiente de verificación
+  real**, no se auto-publica (ver `server/README.md`, "Aprobar una
+  tienda").
 - Alta y edición de productos desde el panel de vendedor
-  (`sellerService`/`productService`) — un producto que agregas ahí queda
-  en la base de datos, visible para cualquiera que abra la app apuntando
-  al mismo backend, no sólo en tu navegador.
+  (`sellerService`/`productService`), **con compatibilidad de vehículos
+  real y obligatoria** (marca/modelo/año/motor/versión, varios vehículos
+  por producto) — un producto que agregas ahí queda en la base de datos,
+  visible para cualquier comprador una vez tu tienda está verificada.
+- **Importación masiva de productos por Excel** desde el panel de
+  vendedor: plantilla oficial descargable, vista previa con validación por
+  fila antes de tocar la base, e importación de cientos/miles de productos
+  con sus compatibilidades. Re-subir el mismo SKU actualiza en vez de
+  duplicar.
 - Navegación de compra (Inicio, Buscar, Tiendas, detalle de producto/
   tienda): combina el catálogo local de muestra con las tiendas/productos
-  reales del backend, para que lo que subas aparezca en la misma
-  navegación sin ninguna pantalla nueva.
+  reales y **verificados** del backend, para que lo que subas aparezca en
+  la misma navegación sin ninguna pantalla nueva, apenas se apruebe tu
+  tienda.
 
 **Todavía simulado en el navegador (sin servidor) — ver
 `docs/ROADMAP.md` para el orden en que se conecta cada uno:**
@@ -285,9 +307,14 @@ muestra):**
 - Pedidos creados en checkout: no hay pasarela de pago real conectada, y el
   pedido en sí todavía se guarda en `localStorage` (no en el backend) —
   siguiente paso natural una vez el flujo de compra esté validado.
-- Verificación de tienda: toda tienda que se registra queda "verificada"
-  automáticamente en el backend — no hay flujo de KYC real todavía (se
-  declara así explícitamente, ver `server/README.md`).
+- Fotos de producto: siguen siendo la ilustración por categoría generada
+  en el cliente — no hay proveedor de almacenamiento de imágenes conectado
+  todavía. El diseño completo (subida individual y por lotes) ya está
+  documentado en `docs/BASE_DE_DATOS.md` §4.1, listo para cuando se
+  conecte.
+- Aprobación de tiendas: el estado ya es real, pero aprobar/rechazar hoy es
+  SQL/API directo (ver `server/README.md`) — todavía no hay un panel de
+  administración con interfaz.
 - Notificaciones y reseñas: datos de muestra fijos.
 - Chat "Preguntar a la tienda": las respuestas se generan en el cliente a
   partir de los datos reales del producto/tienda (no hay mensajería real ni

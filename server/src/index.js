@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { authRouter } from './routes/auth.js';
 import { productsRouter } from './routes/products.js';
+import { productsImportRouter } from './routes/productsImport.js';
 import { storesRouter } from './routes/stores.js';
 
 const app = express();
@@ -13,6 +14,10 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRouter);
+// Antes que /api/products: si no, "/api/products/import/template" cae en
+// la ruta /:id de productsRouter, que trataría "import" como un id de
+// producto y respondería 404 antes de llegar acá.
+app.use('/api/products/import', productsImportRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/stores', storesRouter);
 

@@ -874,6 +874,22 @@ img, svg { display: block; max-width: 100%; }
 .field__password input { flex: 1; padding-right: 46px; }
 .field__password .icon-btn { position: absolute; right: 4px; width: 34px; height: 34px; background: none; border: none; }
 .field-error { color: #ff7a76; font-size: 12.5px; }
+.field-hint { color: var(--color-text-muted); font-size: 12px; margin: -6px 0 0; }
+
+/* ---------- Filas de compatibilidad de vehículo (panel de vendedor) ---------- */
+.compat-rows { display: flex; flex-direction: column; gap: 10px; }
+.compat-row {
+  display: flex; gap: 8px; align-items: flex-start;
+  background: var(--color-surface-2); border-radius: var(--radius-sm); padding: 10px;
+}
+.compat-row__fields { flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.compat-row__fields .field { gap: 4px; }
+.compat-row__fields .field__label { font-size: 11px; }
+
+/* ---------- Importación masiva por Excel (panel de vendedor) ---------- */
+.import-flow > * + * { margin-top: 12px; }
+.import-errors summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); }
+.import-errors .compat-list { margin-top: 8px; }
 .checkbox-field {
   display: flex; align-items: center; gap: 10px;
   background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm);
