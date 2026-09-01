@@ -18,10 +18,11 @@ export const sellerService = {
       api.get('/products/mine/list', { auth: true }),
       orderService.getOrdersForStore(storeId),
     ]);
-    const totalSales = orders.reduce((sum, o) => sum + o.total, 0);
-    const pendingOrders = orders.filter((o) =>
-      ['Pendiente de pago (MVP)', 'Pendiente de pago', 'Procesando'].includes(o.status)
-    ).length;
+    // "Ventas totales" cuenta sólo lo ya cobrado (status 'pagado') — sumar
+    // pedidos todavía pendientes de pago inflaría el número con dinero que
+    // ni siquiera se sabe si va a cobrarse (ver PRINCIPIOS.md §4).
+    const totalSales = orders.filter((o) => o.status === 'pagado').reduce((sum, o) => sum + o.total, 0);
+    const pendingOrders = orders.filter((o) => o.status === 'pendiente_pago').length;
     return {
       store,
       products,
@@ -46,6 +47,13 @@ export const sellerService = {
 
   async updateStore(patch) {
     return api.patch('/stores/mine', patch, { auth: true });
+  },
+
+  // El vendedor confirma que cobró un pedido (transferencia/pago móvil
+  // coordinado por fuera de la app) o lo cancela — no hay pasarela de pago
+  // real conectada todavía (ver docs/ROADMAP.md).
+  async updateOrderStatus(orderId, status) {
+    return api.patch(`/orders/${orderId}/status`, { status }, { auth: true });
   },
 
   // Fotos reales de producto (Cloudinary detrás de la API — ver

@@ -26,17 +26,17 @@ Documentos relacionados, para no duplicar contenido:
 Una SPA (HTML/CSS/JS con módulos ES nativos, **sin build step, sin
 framework**) que corre en el navegador, más un **backend real mínimo**
 (`server/`: Node.js + Express + PostgreSQL) que ya sostiene el registro de
-cuentas, el alta de tiendas y el CRUD de productos — no es un plan a
-futuro, es código que corre y tiene una base de datos detrás. El resto
-(carrito, pedidos, favoritos, garage de vehículos, notificaciones) sigue
-viviendo en `localStorage` (ver §7 para el detalle exacto de qué está de
-cada lado hoy). La app está organizada en capas justamente para que esa
-migración fuera, servicio por servicio, un cambio **localizado y
-mecánico** en vez de una reescritura — y eso ya se verificó en la
-práctica: `authService`, `productService`, `storeService` y
-`sellerService` se conectaron al backend real sin tocar el render de
-ninguna pantalla, más allá de un checkbox nuevo en el formulario de
-registro (ver §12).
+cuentas, el alta de tiendas, el CRUD de productos y los pedidos — no es un
+plan a futuro, es código que corre y tiene una base de datos detrás. El
+carrito (borrador de compra antes de confirmar), favoritos, garage de
+vehículos y notificaciones siguen viviendo en `localStorage` (ver §7 para
+el detalle exacto de qué está de cada lado hoy). La app está organizada en
+capas justamente para que esa migración fuera, servicio por servicio, un
+cambio **localizado y mecánico** en vez de una reescritura — y eso ya se
+verificó en la práctica: `authService`, `productService`, `storeService`,
+`sellerService` y `orderService` se conectaron al backend real sin tocar
+el render de ninguna pantalla, más allá de un checkbox nuevo en el
+formulario de registro (ver §12).
 
 ## 2. Stack tecnológico
 
@@ -66,14 +66,13 @@ registro (ver §12).
 | Base de datos | PostgreSQL | NoSQL (Firestore/Mongo) — descartado, el dominio es relacional (ver `DECISIONES.md`, ADR-007) |
 | Servidor API | Node.js + Express | Mismo lenguaje que el frontend (JS), sin capa nueva que aprender; suficiente para el número de endpoints actual (auth + products + stores) |
 | Autenticación | JWT propio (`jsonwebtoken`) + contraseñas con `bcryptjs` | Se evaluó Supabase Auth (evita reconstruir esta pieza) pero se optó por control total del esquema de datos desde el día uno del piloto — ver `DECISIONES.md`, ADR-007. Sigue siendo una migración razonable más adelante si el volumen de auth lo justifica |
-| Cliente de base de datos | `pg` (node-postgres), sin ORM | El esquema actual (4 tablas) no justifica todavía la indirección de un ORM (Prisma/Drizzle) — SQL directo en `server/src/routes/*.js` es más fácil de auditar a este tamaño |
+| Cliente de base de datos | `pg` (node-postgres), sin ORM | El esquema actual (9 tablas) no justifica todavía la indirección de un ORM (Prisma/Drizzle) — SQL directo en `server/src/routes/*.js` es más fácil de auditar a este tamaño |
 | Hosting backend (para desplegar, ver `server/README.md`) | Railway o Render (Node + Postgres administrado en el mismo lugar), o Postgres en Supabase/Neon + servidor en cualquier otro proveedor | — |
 | Hosting frontend | Cualquier hosting estático (Netlify, Vercel, GitHub Pages, S3+CDN) — el frontend sigue siendo estático incluso con backend real | — |
 
-Lo que el backend **todavía no cubre** (carrito, pedidos/pagos, subida de
-imágenes, reseñas, verificación real de tienda) sigue resuelto del lado
-del cliente o simulado — ver §7, §9 y `ROADMAP.md` para el orden en que se
-agrega cada pieza.
+Lo que el backend **todavía no cubre** (carrito antes de comprar, pagos
+automatizados, reseñas) sigue resuelto del lado del cliente o simulado —
+ver §7, §9 y `ROADMAP.md` para el orden en que se agrega cada pieza.
 
 ## 3. Las capas y la regla de dependencia
 
@@ -152,8 +151,8 @@ js/
     cartService.js        Carrito + evento global CART_CHANGED_EVENT
     favoritesService.js   Favoritos de productos y de tiendas (misma forma,
                           namespaces distintos) + FAVORITES_CHANGED_EVENT
-    authService.js         Sesión demo + registro (ver §8, Autenticación)
-    orderService.js         Historial de pedidos + checkout (sin pagos)
+    authService.js         Sesión real (JWT) + registro (ver §8, Autenticación)
+    orderService.js         Pedidos reales (server/) — checkout, historial, sin pagos automatizados
     sellerService.js         Agrega datos para el panel de vendedor
     notificationService.js   Centro de notificaciones (leído/no leído)
 
@@ -221,20 +220,23 @@ frontend con un backend real, ver §10.)*
 ## 7. Base de datos
 
 **Ya existe una base de datos real** (PostgreSQL, esquema en
-[`server/src/schema.sql`](../server/src/schema.sql)) con siete tablas:
+[`server/src/schema.sql`](../server/src/schema.sql)) con nueve tablas:
 `users`, `categories`, `stores`, `store_categories`, `products`,
-`product_compatibility` y `product_images` — el subconjunto necesario para
-que una tienda real se registre (con toda su info fiscal/de contacto),
-quede pendiente de verificación, y cargue su inventario completo —a mano o
-por Excel— con compatibilidad de vehículos real, no un valor de relleno.
-Sigue siendo más chica que el esquema objetivo completo (sin `order_items`,
-`reviews`, `vehicle_brands`/`vehicle_models` como catálogo cerrado, etc.)
-porque cada tarea que la amplió tuvo un alcance acotado, no migró todo de
-una vez.
+`product_compatibility`, `product_images`, `orders` y `order_items` — el
+subconjunto necesario para que una tienda real se registre (con toda su
+info fiscal/de contacto), quede pendiente de verificación, cargue su
+inventario completo —a mano o por Excel, con fotos reales— con
+compatibilidad de vehículos real, y para que un comprador complete un
+pedido real que persiste (precio y nombre congelados al momento de la
+compra). Sigue siendo más chica que el esquema objetivo completo (sin
+`reviews`, `vehicle_brands`/`vehicle_models` como catálogo cerrado, sin
+`subtotal_cents`/`shipping_cents`/`payment_method` separados en `orders`,
+etc.) porque cada tarea que la amplió tuvo un alcance acotado, no migró
+todo de una vez.
 
-Lo que **todavía no tiene tabla real** — carrito, pedidos, favoritos,
-garage de vehículos, notificaciones, reseñas — sigue como arrays en
-`js/data/*.js` + `localStorage`, igual que antes.
+Lo que **todavía no tiene tabla real** — carrito (antes de comprar,
+deliberadamente), favoritos, garage de vehículos, notificaciones, reseñas
+— sigue como arrays en `js/data/*.js` + `localStorage`, igual que antes.
 
 Inventario completo de claves de `localStorage` que quedan, el esquema
 implementado hoy, el esquema objetivo completo en Postgres, y el plan de
@@ -376,10 +378,10 @@ Ordenado por qué tan pronto se vuelve un problema real:
 
 | Límite actual | Por qué existe | Cuándo se vuelve bloqueante |
 |---|---|---|
-| `localStorage` es **por navegador**, no por cuenta — **ya resuelto para tiendas/productos/cuentas** (viven en Postgres), **sigue así para carrito/pedidos/favoritos/garage** | Backend implementado sólo para auth+productos+tiendas (ver §7) | Ya no bloquea la parte de catálogo: un vendedor que edita su inventario, cualquier comprador en cualquier dispositivo lo ve. Sigue bloqueando pedidos reales entre dispositivos — el carrito y el historial de compra todavía son por navegador (ver `ROADMAP.md`, resto de la Etapa 1). |
+| `localStorage` es **por navegador**, no por cuenta — **ya resuelto para tiendas/productos/cuentas/pedidos** (viven en Postgres), **sigue así para carrito/favoritos/garage** | Backend implementado para auth+productos+tiendas+pedidos (ver §7); carrito se queda local a propósito (ver `server/README.md`, "Pedidos reales") | Ya no bloquea catálogo ni historial de compra: un pedido hecho se ve desde cualquier dispositivo. Favoritos/garage siguen por navegador — aceptable, no bloquean comprar ni vender. |
 | `productService.search()` sobre backend filtra con `ILIKE`, no un índice de texto completo | Base de datos ya existe, pero sin índice de búsqueda dedicado todavía | Deja de ser instantáneo bien antes de "millones de productos" — con cientos de tiendas y miles de productos conviene un índice full-text o un motor de búsqueda dedicado. No es un problema a los 50–200 productos de un piloto. |
-| No hay control de concurrencia de inventario (dos compradores comprando la última unidad a la vez) | El backend actual no tiene todavía un flujo de compra/reserva de stock (sólo CRUD de productos) | Bloqueante en cuanto exista checkout real contra este backend con inventario ajustado — no antes, porque hoy no hay checkout real que descuente stock. |
-| El carrito, el historial de pedidos y el garage de vehículos no sobreviven a "borrar datos del navegador" | Todavía no migrados a Postgres (ver §7 y `BASE_DE_DATOS.md` §6) | Aceptable para el piloto controlado actual; no aceptable para un comprador real que cambia de teléfono o borra caché — es el siguiente paso de la Etapa 1, no de una etapa futura. |
+| No hay control de concurrencia de inventario (dos compradores comprando la última unidad a la vez): `POST /api/orders` ya es real pero no descuenta ni reserva `products.stock` | Decisión de alcance al construir el checkout real — el vendedor sigue ajustando stock a mano desde el panel | Ya activo, no sólo hipotético: dos compradores pueden completar un pedido por la misma unidad. Aceptable mientras el volumen de pedidos simultáneos por producto sea bajo (piloto); bloqueante apenas eso deje de ser cierto — la solución es un `UPDATE ... WHERE stock >= qty` atómico al crear el pedido, no una reescritura. |
+| El carrito y el garage de vehículos no sobreviven a "borrar datos del navegador" | No migrados a Postgres, a propósito (ver §7 y `BASE_DE_DATOS.md` §6) | Aceptable: son borrador de compra y preferencia de UI, no un dato de negocio que se pierda — a diferencia de un pedido ya hecho, que si sobrevive (ver fila de arriba). |
 | Sin SEO / sin server-side rendering | SPA pura, contenido no indexable por buscadores | Bloqueante el día que la adquisición de compradores dependa de tráfico orgánico de Google hacia páginas de producto/tienda. No bloqueante mientras la adquisición sea directa (referidos, redes sociales, boca a boca del piloto). |
 | Un solo idioma, una sola moneda (USD, sin formateo por locale) | No hace falta todavía | Bloqueante sólo al expandir fuera de Venezuela o a un mercado con otra moneda dominante. |
 | Sin panel de analítica/eventos | No implementado | No bloquea el piloto; sí bloquea decidir con datos qué mejorar después del piloto — conviene instrumentarlo apenas haya usuarios reales, no antes (ver `ROADMAP.md`). |
@@ -427,10 +429,11 @@ quedan, en [`BASE_DE_DATOS.md` §3 y §6](./BASE_DE_DATOS.md). Resumen:
    no lo veía ningún comprador fuera de su propio navegador. Implementado
    en `server/` con Postgres; `product_overrides` y `users_extra` (las
    claves de `localStorage` que esto reemplazó) ya no existen.
-2. **`orders` + `order_items` (carrito → pedido real)** — siguiente paso
-   pendiente dentro de la Etapa 1: historial de compra real, visible desde
-   cualquier dispositivo. `cartService`/`orderService` siguen en
-   `localStorage` hasta entonces.
+2. **`orders` + `order_items` (pedido real) — ✅ hecho.** Historial de
+   compra real, visible desde cualquier dispositivo; `orderService` ya
+   habla contra `server/`. `cartService` se queda en `localStorage` — es el
+   borrador antes de confirmar la compra, no el dato de negocio que había
+   que centralizar.
 3. **`favorites_products` / `favorites_stores` / `user_vehicles`** — no
    bloquean negocio, se migran cuando el valor de "me siguen entre
    dispositivos" lo justifique.

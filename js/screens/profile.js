@@ -1,19 +1,10 @@
 import { icon } from '../ui/icons.js';
-import { escapeHtml, emptyState } from '../ui/components.js';
+import { escapeHtml, emptyState, shortOrderId, orderStatusBadge } from '../ui/components.js';
 import { authService } from '../services/authService.js';
 import { orderService } from '../services/orderService.js';
 import { vehicleService } from '../services/vehicleService.js';
 import { navigate } from '../nav.js';
 import { showToast } from '../ui/toast.js';
-
-const STATUS_MODIFIER = {
-  Entregado: 'ok',
-  'En camino': 'wait',
-  Procesando: 'wait',
-  'Pendiente de pago': 'off',
-  'Pendiente de pago (MVP)': 'off',
-  Cancelado: 'off',
-};
 
 export async function render(container) {
   const user = authService.getCurrentUser();
@@ -121,15 +112,14 @@ export async function render(container) {
 }
 
 function orderRow(order) {
-  const modifier = STATUS_MODIFIER[order.status] || 'wait';
   return `
   <article class="order-row">
     <div>
-      <p class="order-row__id">#${order.id}</p>
+      <p class="order-row__id">#${shortOrderId(order.id)}</p>
       <p class="order-row__date">${order.date} · ${order.items.length} producto${order.items.length === 1 ? '' : 's'}</p>
     </div>
     <div class="order-row__side">
-      <span class="badge badge--${modifier}">${order.status}</span>
+      ${orderStatusBadge(order.status)}
       <span class="order-row__total">$${order.total.toFixed(2)}</span>
     </div>
   </article>`;

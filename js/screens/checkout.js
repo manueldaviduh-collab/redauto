@@ -1,5 +1,5 @@
 import { icon } from '../ui/icons.js';
-import { backHeaderHtml, formatPrice, escapeHtml, emptyState } from '../ui/components.js';
+import { backHeaderHtml, formatPrice, escapeHtml, emptyState, shortOrderId } from '../ui/components.js';
 import { cartService } from '../services/cartService.js';
 import { authService } from '../services/authService.js';
 import { orderService } from '../services/orderService.js';
@@ -103,6 +103,7 @@ export async function render(container) {
       btn.textContent = originalLabel;
       return;
     }
+    if (result.warning) showToast(result.warning, 'info');
     renderConfirmation(container, result.order);
   });
 }
@@ -115,7 +116,7 @@ function renderConfirmation(container, order) {
       <div class="confirmation-card">
         <div class="confirmation-card__icon">${icon('check', { size: 30 })}</div>
         <h1 class="confirmation-card__title">¡Pedido registrado!</h1>
-        <p class="confirmation-card__text">Tu pedido <strong>#${order.id}</strong> quedó en estado <strong>${order.status}</strong>. Esto es un MVP sin pasarela de pago: la tienda te contactará para coordinar el cobro y el envío.</p>
+        <p class="confirmation-card__text">Tu pedido <strong>#${shortOrderId(order.id)}</strong> quedó <strong>pendiente de pago</strong>. Esto es un MVP sin pasarela de pago: la tienda te contactará para coordinar el cobro y el envío.</p>
         <div class="confirmation-card__actions">
           <a href="#/perfil" class="btn btn--primary">Ver mis pedidos</a>
           <a href="#/" class="btn btn--ghost">Volver al inicio</a>

@@ -78,11 +78,31 @@ personalmente, sin que el fundador tenga que cargar cada catálogo a mano.
 - ✅ Cero datos ficticios sembrados: la base arranca sólo con la taxonomía
   de categorías; toda tienda/producto/usuario se crea vía el flujo real de
   registro, nunca por script de siembra.
+- ✅ Verificación de tienda ya no es automática: toda tienda nueva queda
+  `pendiente` y sólo un admin la aprueba, ahora desde un **panel con
+  interfaz** (`#/admin`, ver `server/README.md`, "Panel de
+  administración") — el rol sigue asignándose a mano por SQL, nunca
+  self-service. Sigue sin subida de documentos — eso es
+  `store_verification_requests`, todavía objetivo (`BASE_DE_DATOS.md`
+  §4.1).
+- ✅ Compatibilidad de vehículos real (`product_compatibility`) y
+  **importación masiva de productos por Excel** (plantilla, validación por
+  fila, re-importar actualiza sin duplicar) — no estaban en el plan
+  original de esta etapa, se adelantaron porque una tienda con cientos o
+  miles de productos no puede cargarlos uno por uno a mano.
+- ✅ **Historial de pedidos real** (`orders`/`order_items` en Postgres,
+  `POST/GET /api/orders/*`) — un pedido persiste en la base, visible desde
+  cualquier dispositivo, con precio y nombre congelados al momento de la
+  compra; el vendedor lo marca `pagado`/`cancelado` a mano (sin pasarela de
+  pago todavía). **Decisión de alcance:** el carrito (antes de confirmar)
+  se queda en `localStorage` — es borrador de compra de bajo riesgo, y
+  moverlo exigiría cuentas para sólo mirar el catálogo; lo que importaba
+  resolver era que el pedido ya hecho no se perdiera (ver
+  `server/README.md`, "Pedidos reales").
+- ✅ Subida real de fotos de producto a Cloudinary (hasta 8 por producto,
+  con borrar/reordenar) — ver `ARQUITECTURA.md` §9.
 
 **Qué falta todavía dentro de esta etapa:**
-- Historial de pedidos real (`orders`/`order_items` en Postgres) — hoy el
-  carrito y "Mis pedidos" siguen en `localStorage`/datos de muestra (ver
-  `BASE_DE_DATOS.md` §6, paso 1).
 - Tests de humo automatizados (Playwright) para el flujo crítico: login →
   buscar → agregar al carrito → checkout, y alta de producto en el panel
   de vendedor — ver `ARQUITECTURA.md` §15. Hoy la verificación de este
@@ -91,21 +111,9 @@ personalmente, sin que el fundador tenga que cargar cada catálogo a mano.
   más de un cambio por semana tocando el mismo código; sin una suite
   real, algo se rompe sin que nadie lo note hasta que un usuario real se
   queja.
-- ✅ Verificación de tienda ya no es automática: toda tienda nueva queda
-  `pendiente` y sólo un admin la aprueba (SQL/API directo, ver
-  `server/README.md`) para que se vuelva visible a compradores. Sigue sin
-  panel de administración con interfaz ni subida de documentos — eso es
-  `store_verification_requests`, todavía objetivo (`BASE_DE_DATOS.md`
-  §4.1).
-- ✅ Compatibilidad de vehículos real (`product_compatibility`) y
-  **importación masiva de productos por Excel** (plantilla, validación por
-  fila, re-importar actualiza sin duplicar) — no estaban en el plan
-  original de esta etapa, se adelantaron porque una tienda con cientos o
-  miles de productos no puede cargarlos uno por uno a mano.
-- Desplegar `server/` en algún lugar alcanzable por usuarios reales fuera
-  de esta sandbox de desarrollo (ver `server/README.md`, sección de
-  despliegue) — hoy corre local/efímero, el código ya está listo para
-  desplegarse tal cual.
+- ✅ Desplegado y alcanzable por usuarios reales fuera de esta sandbox de
+  desarrollo (Railway para `server/` + Postgres, Vercel para el frontend
+  — ver `server/README.md`, sección de despliegue).
 
 **Explícitamente fuera de esta etapa:** pasarela de pago automatizada
 todavía (pago sigue coordinándose y confirmándose a mano — ahora al menos
@@ -125,10 +133,13 @@ tienda self-service con RIF/responsable/WhatsApp/dirección/estado/
 categorías, verificación real (pendiente por defecto, un admin aprueba),
 compatibilidad de vehículos real, importación masiva por Excel, subida
 real de fotos de producto a Cloudinary (hasta 8 por producto, con
-borrar/reordenar — ver `ARQUITECTURA.md` §9 y `BASE_DE_DATOS.md` §4.1), y
+borrar/reordenar — ver `ARQUITECTURA.md` §9 y `BASE_DE_DATOS.md` §4.1),
 **panel de administración con interfaz** (`#/admin`, sólo accesible con
 rol `admin` — ver `server/README.md`, "Panel de administración") para
-aprobar/rechazar tiendas sin tocar SQL.
+aprobar/rechazar tiendas sin tocar SQL, y **pedidos reales**
+(`orders`/`order_items`, ver `server/README.md`, "Pedidos reales") — un
+comprador ve su historial desde cualquier dispositivo y un vendedor ve
+pedidos reales en su panel.
 
 **Qué falta todavía dentro de esta etapa:**
 - Subida de documentos reales para la solicitud
@@ -139,8 +150,9 @@ aprobar/rechazar tiendas sin tocar SQL.
 - Importación masiva de fotos (ZIP o URLs por columna en el Excel) —
   diseño completo en `BASE_DE_DATOS.md` §4.1, deliberadamente sin construir
   todavía (la subida individual ya sí es real).
-- Reseñas reales de compradores, ligadas a `order_id` (solo quien compró
-  puede reseñar — ver `BASE_DE_DATOS.md` §3).
+- Reseñas reales de compradores, ligadas a `order_id` (sólo quien compró
+  puede reseñar — ver `BASE_DE_DATOS.md` §3). Ya no depende de nada más:
+  `orders` es real, sólo falta construir el flujo de reseñas en sí.
 - Notificaciones reales (al menos email; push si aplica), reemplazando los
   datos de muestra de `notificationService`.
 - Instrumentación básica de analítica/eventos (funnel: ver producto →

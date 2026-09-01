@@ -41,13 +41,22 @@ Hace:
   visible/accesible para cuentas con rol `admin`): lista de tiendas por
   estado (pendientes/verificadas/rechazadas/todas), con botones para
   aprobar o rechazar. Ver "Panel de administración" más abajo.
+- **Pedidos reales** (`/api/orders/*`): un comprador autenticado registra un
+  pedido real a partir de su carrito — precio y nombre de cada línea se
+  resuelven siempre del lado del servidor y quedan congelados (si el
+  producto cambia de precio después, el pedido ya hecho no cambia). Visible
+  desde cualquier dispositivo, tanto para el comprador (`GET /orders/mine`)
+  como para cada tienda involucrada (`GET /orders/store`). Sin pasarela de
+  pago conectada: el vendedor confirma a mano que cobró
+  (`PATCH /orders/:id/status`).
 
 Todavía no hace (ver `docs/ROADMAP.md` para el orden en que se agrega):
-carrito/pedidos reales, pagos, envíos, importación masiva de fotos (ZIP o
-URLs por Excel — diseño en `docs/BASE_DE_DATOS.md` §4.1, la subida
-individual ya sí es real), reseñas, notificaciones push. El frontend sigue
-resolviendo carrito/pedidos en `localStorage`, documentado en el README
-raíz.
+pagos automatizados, envíos con seguimiento real, importación masiva de
+fotos (ZIP o URLs por Excel — diseño en `docs/BASE_DE_DATOS.md` §4.1, la
+subida individual ya sí es real), reseñas, notificaciones push. El carrito
+(antes de convertirse en pedido) sigue en `localStorage` del navegador —
+ver "Pedidos reales" más abajo para por qué eso es una decisión, no un
+pendiente.
 
 ## Requisitos
 
@@ -172,6 +181,39 @@ Authorization: Bearer <token de una cuenta admin>
 { "status": "verificada" }   -- o "rechazada"
 ```
 
+## Pedidos reales
+
+Antes vivían enteros en `localStorage` (por navegador: un pedido no se veía
+en otro dispositivo, y el panel de vendedor mostraba pedidos de ejemplo, no
+reales). Ahora:
+
+- El **carrito** (antes de confirmar la compra) sigue en `localStorage` del
+  navegador — a propósito, no es un pendiente: es borrador de compra, de
+  bajo riesgo, y moverlo a la base de datos hoy exigiría cuentas hasta para
+  mirar el catálogo, que no es lo que se pidió.
+- El **pedido** (lo que se crea al confirmar en el checkout) es real desde
+  el primer clic: `POST /api/orders` resuelve precio y nombre de cada línea
+  del lado del servidor (nunca de lo que mande el cliente) y los congela
+  (`product_name_snapshot`/`unit_price_cents`) — si la tienda después
+  cambia el precio o borra el producto, el pedido ya hecho no cambia.
+- Sólo acepta productos reales de tiendas ya verificadas. El catálogo de
+  muestra (`js/data/products.js`, todavía usado para que la navegación de
+  compra nunca se vea vacía) no existe en esta base — si el carrito trae
+  alguno de esos, esa línea se descarta y la respuesta lo avisa
+  (`skippedCount`) en vez de fingir que se compró.
+- Estados honestos solamente: `pendiente_pago` (recién creado) →
+  `pagado` (la tienda confirma que cobró, coordinado aparte por WhatsApp/
+  transferencia) o `cancelado`. Nunca "en camino"/"entregado" — eso
+  implicaría un seguimiento de envío que no existe todavía (ver
+  `docs/PRINCIPIOS.md` §4).
+- `GET /api/orders/mine` (comprador) y `GET /api/orders/store` (vendedor,
+  resuelve su tienda del token) son de sólo lectura, cada quien ve lo suyo.
+  `PATCH /api/orders/:id/status` lo usa el vendedor para marcar
+  pagado/cancelado — nota: el estado es del pedido completo, no por tienda
+  (un carrito puede mezclar productos de varias tiendas); cualquier
+  vendedor con al menos una línea en ese pedido puede cambiarlo, lo cual es
+  exactamente correcto en el caso común (un pedido = una tienda).
+
 ## Cómo cargar tu propia tienda (sin pasos de demostración)
 
 Una vez que el backend esté corriendo (local o desplegado) y el frontend
@@ -224,6 +266,10 @@ pero ya tiene una pantalla — no hace falta SQL para el día a día.
 | PATCH | `/api/stores/mine` | Bearer (vendedor) | Editar los datos de tu tienda (nunca su verificación) |
 | GET | `/api/stores/admin` | Bearer (admin) | Todas las tiendas, cualquier estado — `?status=pendiente\|verificada\|rechazada` filtra |
 | PATCH | `/api/stores/:id/verification` | Bearer (admin) | Aprobar/rechazar una tienda — ver "Panel de administración" arriba |
+| POST | `/api/orders` | Bearer | Crea un pedido real desde el carrito — `{items:[{productId,qty}], shipping:{name,phone,address,city}}` |
+| GET | `/api/orders/mine` | Bearer | Tu historial de pedidos como comprador |
+| GET | `/api/orders/store` | Bearer (vendedor) | Pedidos con al menos un producto de tu tienda |
+| PATCH | `/api/orders/:id/status` | Bearer (vendedor) | Marca un pedido tuyo como pagado/cancelado — `{"status":"pagado"}` |
 
 ## Seguridad — qué ya está y qué falta antes de manejar datos sensibles reales
 

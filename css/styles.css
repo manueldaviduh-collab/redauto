@@ -976,6 +976,10 @@ img, svg { display: block; max-width: 100%; }
 .order-row__date { font-size: 11.5px; color: var(--color-text-muted); margin-top: 3px; }
 .order-row__side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .order-row__total { font-weight: 700; font-size: 13px; }
+.order-row--seller { flex-direction: column; align-items: stretch; gap: 10px; }
+.order-row__main { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.order-row__actions { display: flex; gap: 8px; }
+.order-row__actions .btn { flex: 1; }
 
 /* ---------- Panel de vendedor ---------- */
 .seller-panel__store { color: var(--color-text-secondary); font-size: 13px; margin-bottom: 14px; }

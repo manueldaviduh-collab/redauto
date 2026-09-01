@@ -1,6 +1,7 @@
 import { icon } from '../ui/icons.js';
 import {
   backHeaderHtml, escapeHtml, formatPrice, availabilityBadge, typeBadge, emptyState, ratingInline,
+  shortOrderId, orderStatusBadge,
 } from '../ui/components.js';
 import { authService } from '../services/authService.js';
 import { sellerService } from '../services/sellerService.js';
@@ -120,7 +121,7 @@ function renderResumen({ kpis }) {
     <div class="kpi-card"><span class="kpi-card__value">${kpis.productsCount}</span><span class="kpi-card__label">Productos</span></div>
     <div class="kpi-card"><span class="kpi-card__value">${ratingInline(kpis.rating)}</span><span class="kpi-card__label">Calificación</span></div>
   </div>
-  <p class="detail-block__text seller-note">${icon('info', { size: 14 })} Tu inventario y tu tienda son datos reales guardados en el servidor. Los pedidos todavía se calculan sobre datos de ejemplo — el checkout real de compradores es un paso posterior (ver docs/ROADMAP.md).</p>
+  <p class="detail-block__text seller-note">${icon('info', { size: 14 })} Tu inventario, tu tienda y tus pedidos son datos reales guardados en el servidor. Sin pasarela de pago conectada todavía, marca un pedido como "Pagado" a mano cuando confirmes el cobro (ver pestaña Pedidos).</p>
   `;
 }
 
@@ -129,15 +130,23 @@ function renderPedidos({ orders }) {
   return `
   <div class="order-list">
     ${orders.map((o) => `
-      <article class="order-row">
-        <div>
-          <p class="order-row__id">#${o.id}</p>
-          <p class="order-row__date">${o.date} · ${o.items.map((i) => escapeHtml(i.product?.name || '')).join(', ')}</p>
+      <article class="order-row order-row--seller" data-order-id="${o.id}">
+        <div class="order-row__main">
+          <div>
+            <p class="order-row__id">#${shortOrderId(o.id)}</p>
+            <p class="order-row__date">${o.date} · ${o.items.map((i) => escapeHtml(i.product?.name || '')).join(', ')}</p>
+            <p class="order-row__date">${escapeHtml(o.shippingInfo?.name || '')} · ${escapeHtml(o.shippingInfo?.phone || '')}</p>
+          </div>
+          <div class="order-row__side">
+            ${orderStatusBadge(o.status)}
+            <span class="order-row__total">${formatPrice(o.total)}</span>
+          </div>
         </div>
-        <div class="order-row__side">
-          <span class="badge badge--wait">${o.status}</span>
-          <span class="order-row__total">${formatPrice(o.total)}</span>
-        </div>
+        ${o.status === 'pendiente_pago' ? `
+        <div class="order-row__actions">
+          <button type="button" class="btn btn--primary btn--sm" data-order-action="pagado">${icon('check', { size: 14 })} Marcar como pagado</button>
+          <button type="button" class="btn btn--ghost btn--sm" data-order-action="cancelado">${icon('x', { size: 14 })} Cancelar</button>
+        </div>` : ''}
       </article>`).join('')}
   </div>`;
 }
@@ -207,6 +216,24 @@ function bindTabEvents(contentEl, tab, user, dashboard, refresh) {
   }
   if (tab === 'verificacion') {
     contentEl.querySelector('#btn-edit-store')?.addEventListener('click', () => openStoreEditForm({ store: dashboard.store, refresh }));
+  }
+  if (tab === 'pedidos') {
+    contentEl.querySelectorAll('[data-order-action]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const row = btn.closest('[data-order-id]');
+        const orderId = row.dataset.orderId;
+        const status = btn.dataset.orderAction;
+        row.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+        try {
+          await sellerService.updateOrderStatus(orderId, status);
+          showToast(status === 'pagado' ? 'Pedido marcado como pagado' : 'Pedido cancelado', 'success');
+          refresh();
+        } catch (err) {
+          showToast(err?.message || 'No se pudo actualizar el pedido.', 'error');
+          row.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+        }
+      });
+    });
   }
 }
 

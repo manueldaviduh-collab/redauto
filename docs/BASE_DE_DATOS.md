@@ -17,8 +17,8 @@ verificó al implementar la primera porción.
 | Cuentas de usuario / autenticación | PostgreSQL (`server/`) | Real — contraseñas con `bcrypt`, sesión con JWT (ver `ARQUITECTURA.md` §8) |
 | Tiendas | PostgreSQL (`server/`) | Real — RIF, responsable, WhatsApp, dirección, estado, categorías; quedan **pendientes de verificación**, no se auto-publican |
 | Productos + compatibilidad de vehículos | PostgreSQL (`server/`) | Real — a mano o por importación masiva de Excel; compatibilidad (marca/modelo/año/motor/versión) obligatoria y real, ya no un default "Universal" |
-| Carrito | `localStorage` | Simulado — pendiente de migrar a `orders`/checkout real |
-| Pedidos / "Mis pedidos" | `localStorage` + datos de muestra (`js/data/users.js: demoOrders`) | Simulado |
+| Carrito (antes de comprar) | `localStorage` | Simulado, a propósito — borrador de compra de bajo riesgo, ver §6 |
+| Pedidos / "Mis pedidos" | PostgreSQL (`server/`) | Real — precio y nombre congelados al momento de la compra, visibles desde cualquier dispositivo |
 | Favoritos (productos y tiendas) | `localStorage` | Simulado — no bloquea negocio, ver §6 |
 | Garage de "Mis Vehículos" | `localStorage` | Simulado |
 | Notificaciones | `localStorage` + datos de muestra | Simulado |
@@ -35,11 +35,10 @@ ese catálogo de muestra.
 
 ## 2. Esquema implementado hoy (PostgreSQL, `server/src/schema.sql`)
 
-Siete tablas — el subconjunto necesario para "una empresa real se
-registra, carga su inventario completo (a mano o por Excel) con
-compatibilidad de vehículos real, y un admin la aprueba antes de que sea
-pública". `product_images` ya existe en el esquema pero vacía todavía (ver
-§4 y `ARQUITECTURA.md` §9 para por qué).
+Nueve tablas — el subconjunto necesario para "una empresa real se
+registra, carga su inventario completo (a mano o por Excel, con fotos
+reales) con compatibilidad de vehículos real, un admin la aprueba antes de
+que sea pública, y un comprador completa un pedido real que persiste".
 
 ```
 users
@@ -105,13 +104,35 @@ product_compatibility          -- una fila por cada vehículo compatible;
 └─ created_at                               timestamptz
 INDEX (product_id), INDEX (vehicle_brand, vehicle_model)
 
-product_images                 -- existe, pero vacía: sin proveedor de
-├─ id            uuid PK           almacenamiento conectado todavía (ver §4)
+product_images                 -- subida real a Cloudinary (ver
+├─ id            uuid PK           ARQUITECTURA.md §9)
 ├─ product_id      FK → products.id
 ├─ url               text NOT NULL
-├─ position             int  -- orden de la galería, 0 = foto principal
-└─ created_at              timestamptz
+├─ public_id           text NULL  -- id en Cloudinary, para poder borrar la imagen ahí también
+├─ position               int  -- orden de la galería, 0 = foto principal
+└─ created_at                timestamptz
 INDEX (product_id)
+
+orders                       -- pedido real; status sólo con estados que se
+├─ id            uuid PK        pueden respaldar sin pasarela de pago ni
+├─ buyer_user_id   FK → users.id  envíos conectados (ver §5)
+├─ status            text CHECK IN ('pendiente_pago','pagado','cancelado')
+├─ shipping_name/phone/
+│  address/city         text NULL
+├─ total_cents               int
+└─ created_at                   timestamptz
+INDEX (buyer_user_id)
+
+order_items                  -- una fila por línea de carrito; store_id
+├─ id             uuid PK       propio permite filtrar "mis ventas" por
+├─ order_id         FK → orders.id  tienda sin asumir 1 pedido = 1 tienda
+├─ store_id            FK → stores.id
+├─ product_id            FK → products.id NULL (ON DELETE SET NULL)
+├─ product_name_snapshot   text NOT NULL  -- nombre al momento de comprar
+├─ unit_price_cents           int  -- precio al momento de comprar
+├─ qty                           int CHECK > 0
+└─ created_at                       timestamptz
+INDEX (order_id), INDEX (store_id)
 ```
 
 ## 3. Lo que todavía vive en `localStorage`
@@ -129,16 +150,19 @@ esto en lo que todavía no migró.
 | `garage_active_id` | `vehicleService` | id del vehículo activo (impulsa compatibilidad inteligente) |
 | `favorites` | `favoritesService` | `[productId]` |
 | `favorite_stores` | `favoritesService` | `[storeId]` |
-| `orders_local` | `orderService` | Pedidos creados en checkout en este navegador (se combinan con `demoOrders` de `js/data/users.js`) |
 | `notifications_read` | `notificationService` | `[notificationId]` leídos |
 | `city_pref` | `home.js` (directo) | Ciudad elegida en el selector del header |
 
 **Retiradas al implementar el backend real:** `session` y `users_extra`
-(reemplazadas por `auth_token`/`auth_session` arriba) y
-`product_overrides` (el panel de vendedor escribe directo contra
-`POST/PATCH /api/products`, ya no guarda altas/ediciones en el navegador).
+(reemplazadas por `auth_token`/`auth_session` arriba); `product_overrides`
+(el panel de vendedor escribe directo contra `POST/PATCH /api/products`,
+ya no guarda altas/ediciones en el navegador); `orders_local` (`orderService`
+ahora crea pedidos reales vía `POST /api/orders` — ver tabla `orders` más
+abajo). `cart` sigue en `localStorage`, a propósito: es borrador de compra
+antes de confirmar, de bajo riesgo, no un dato de negocio que se pierda si
+desaparece.
 
-## 4. Esquema objetivo completo (cuando también migre pedidos, reseñas, imágenes, verificación)
+## 4. Esquema objetivo completo (cuando también migren reseñas, favoritos, "Mis Vehículos")
 
 Diseñado para Postgres desde antes de que existiera backend (ver
 `DECISIONES.md`, ADR-007). Las tablas marcadas **✅ implementada** ya
@@ -234,21 +258,28 @@ user_vehicles                                       -- objetivo, no implementado
 ├─ is_active            boolean
 └─ created_at
 
-orders                                    order_items       -- objetivo, no implementado:
-├─ id           uuid PK                    ├─ id             uuid PK   carrito y checkout
-├─ user_id        FK → users.id             ├─ order_id         FK → orders.id  siguen en
-├─ status           enum(...)                ├─ product_id         FK → products.id  localStorage
-├─ subtotal_cents,                            ├─ store_id             FK → stores.id  -- redundante a propósito
-│  shipping_cents,                            ├─ qty
-│  total_cents         int                     ├─ unit_price_cents    -- copia del precio AL MOMENTO de comprar
-├─ currency               char(3)               └─ product_name_snapshot text
-├─ shipping_name/phone/                             -- (ver §5: por qué se copian estos datos)
-│  city/address              text
-├─ delivery_method              enum('envio','retiro')
-├─ payment_status                 enum('pendiente','pagado','reembolsado')
-├─ payment_method                   text NULL
-└─ created_at                          timestamptz
-INDEX (user_id), INDEX (status)     -- order_items: INDEX (order_id), INDEX (store_id)
+orders                                    order_items       -- ✅ implementadas
+├─ id           uuid PK                    ├─ id             uuid PK   (versión más chica,
+├─ buyer_user_id  FK → users.id             ├─ order_id         FK → orders.id  ver abajo)
+├─ status           enum('pendiente_pago',   ├─ store_id             FK → stores.id
+│                    'pagado','cancelado')   ├─ product_id           FK → products.id NULL
+├─ total_cents               int              │                        (ON DELETE SET NULL)
+├─ shipping_name/phone/                       ├─ product_name_snapshot text
+│  address/city              text             ├─ unit_price_cents    -- copia del precio AL MOMENTO de comprar
+└─ created_at                    timestamptz  ├─ qty
+INDEX (buyer_user_id)                         └─ created_at
+                                             INDEX (order_id), INDEX (store_id)
+
+-- Versión más chica que el diseño original de esta sección: sin
+-- subtotal_cents/shipping_cents separados (sólo total_cents — no hay
+-- cálculo de envío real todavía, ver ARQUITECTURA.md §11), sin currency
+-- (todo USD, igual que products), sin delivery_method/payment_method (no
+-- hay pasarela ni logística conectada). Se agregan cuando haya algo real
+-- detrás, no antes (ver DECISIONES.md sobre no construir para hipótesis).
+-- status usa sólo estados que se pueden respaldar de verdad — nunca
+-- "en camino"/"entregado" sin seguimiento real (PRINCIPIOS.md §4).
+-- El carrito (antes de convertirse en un order) sigue en localStorage —
+-- decisión deliberada, ver server/README.md "Pedidos reales".
 
 favorites_products (user_id, product_id, created_at)   PK (user_id, product_id)   -- objetivo,
 favorites_stores    (user_id, store_id,   created_at)   PK (user_id, store_id)     -- no implementado
@@ -335,22 +366,24 @@ reutilizando el endpoint de subida individual ya construido arriba:
   ya implementado) y se formatea a `$XX.XX` sólo en la capa de
   presentación — la conversión centavos↔dólares vive en la frontera del
   API (`toCents`/`toDollars` en `server/src/routes/products.js`), nunca
-  antes. El carrito, que todavía no tiene backend, sigue calculando con
-  `price` como número simple hasta que se migre (§6).
-- **`order_items` copia `unit_price_cents` y `product_name_snapshot`**
-  (objetivo, no implementado — ver tabla `orders` arriba). Un pedido es un
-  documento histórico: si la tienda después cambia el precio o el nombre
-  del producto, el pedido ya hecho **no debe cambiar**. Sin este
-  snapshot, el historial de compras del comprador mostraría precios
-  distintos a los que realmente pagó.
-- **`store_id` en `order_items`, no sólo en `orders`** (objetivo). Un
-  carrito puede tener productos de varias tiendas a la vez (así es hoy en
-  la app). Guardar `store_id` a nivel de línea, no de pedido completo, es
-  lo que permite que `sellerService.getDashboard()` calcule "mis ventas"
-  sin asumir que un pedido pertenece a una sola tienda — esto ya es así
-  en el `orderService.getOrdersForStore()` actual (filtra por ítem, no
-  por pedido) y el esquema objetivo simplemente lo hace explícito con una
-  columna en vez de un filtro en memoria.
+  antes. El carrito, que no tiene backend a propósito (ver §6, paso 1),
+  sigue calculando con `price` como número simple.
+- **`order_items` copia `unit_price_cents` y `product_name_snapshot` — ✅
+  implementada.** Un pedido es un documento histórico: si la tienda
+  después cambia el precio o el nombre del producto, el pedido ya hecho
+  **no cambia** — `POST /api/orders` congela ambos valores al momento de
+  la compra, nunca los vuelve a leer de `products` después.
+- **`store_id` en `order_items`, no sólo en `orders` — ✅ implementada.**
+  Un carrito puede tener productos de varias tiendas a la vez. Guardar
+  `store_id` a nivel de línea, no de pedido completo, es lo que permite que
+  `GET /api/orders/store` calcule "mis ventas" sin asumir que un pedido
+  pertenece a una sola tienda — el total que ve cada vendedor es sólo el de
+  sus propias líneas, no el del pedido completo.
+  **Simplificación deliberada:** `orders.status` sigue siendo un solo
+  campo para todo el pedido, no uno por tienda — si un carrito mezcla dos
+  tiendas, cualquiera de los dos vendedores puede marcar el pedido completo
+  como pagado. Correcto en el caso común (un pedido = una tienda);
+  documentado como límite conocido, no un bug.
 - **`product_compatibility` es su propia tabla, no un JSON embebido — ✅
   implementada.** El objetivo de esto (§2) era que "buscar repuestos para
   mi Corolla 2018" fuera una consulta indexada en vez de un filtro sobre
@@ -375,10 +408,11 @@ reutilizando el endpoint de subida individual ya construido arriba:
 Detalle de qué ya se movió está en §1 y §3. Orden recomendado para el
 resto, cada uno desbloquea al siguiente:
 
-1. **`orders` + `order_items`** — habilita que un comprador vea su
-   historial real desde cualquier dispositivo, y que un vendedor vea
-   pedidos reales (no `demoOrders`) en su dashboard. `orders_local`/`cart`
-   (`localStorage`) se retiran en este paso.
+1. **`orders` + `order_items` — ✅ hecho.** Un comprador ve su historial
+   real desde cualquier dispositivo, y un vendedor ve pedidos reales (no
+   `demoOrders`) en su dashboard. `orders_local` se retiró; `cart` se queda
+   en `localStorage` a propósito (borrador de compra de bajo riesgo, no un
+   dato de negocio — ver `server/README.md`, "Pedidos reales").
 2. **`favorites_products` / `favorites_stores` / `user_vehicles`** — estas
    tres pueden quedarse en `localStorage` más tiempo sin bloquear nada de
    negocio (no impiden comprar ni vender); se migran cuando el valor de

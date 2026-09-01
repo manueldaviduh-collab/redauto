@@ -152,6 +152,46 @@ CREATE TABLE IF NOT EXISTS product_images (
 CREATE INDEX IF NOT EXISTS product_images_product_id_idx ON product_images (product_id);
 ALTER TABLE product_images ADD COLUMN IF NOT EXISTS public_id TEXT;
 
+-- Pedidos reales. Sin pasarela de pago conectada todavía (ver
+-- docs/ROADMAP.md) — el estado real que se puede sostener sin inventar
+-- nada es 'pendiente_pago' (recién creado) → 'pagado' (el vendedor
+-- confirma que cobró, por transferencia/pago móvil coordinado aparte) o
+-- 'cancelado'. Nunca 'en camino'/'entregado': eso implicaría un
+-- seguimiento de envío que todavía no existe (ver PRINCIPIOS.md §4,
+-- Transparencia — no se simulan estados que no se pueden respaldar).
+CREATE TABLE IF NOT EXISTS orders (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  buyer_user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status            TEXT NOT NULL DEFAULT 'pendiente_pago' CHECK (status IN ('pendiente_pago', 'pagado', 'cancelado')),
+  shipping_name     TEXT,
+  shipping_phone    TEXT,
+  shipping_address  TEXT,
+  shipping_city     TEXT,
+  total_cents       INTEGER NOT NULL,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS orders_buyer_user_id_idx ON orders (buyer_user_id);
+
+-- Una fila por línea de carrito, con `store_id` propio (no sólo en
+-- `orders`): un mismo pedido puede mezclar productos de varias tiendas, y
+-- el panel de vendedor necesita filtrar "mis ventas" por línea, no por
+-- pedido completo. `product_name_snapshot`/`unit_price_cents` congelan el
+-- nombre y precio del momento de la compra — si la tienda después edita o
+-- borra el producto, el pedido ya hecho no cambia (ver
+-- docs/BASE_DE_DATOS.md §5).
+CREATE TABLE IF NOT EXISTS order_items (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id               UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  store_id               UUID NOT NULL REFERENCES stores(id),
+  product_id             UUID REFERENCES products(id) ON DELETE SET NULL,
+  product_name_snapshot  TEXT NOT NULL,
+  unit_price_cents       INTEGER NOT NULL,
+  qty                    INTEGER NOT NULL CHECK (qty > 0),
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS order_items_order_id_idx ON order_items (order_id);
+CREATE INDEX IF NOT EXISTS order_items_store_id_idx ON order_items (store_id);
+
 -- Taxonomía real (idéntica a js/data/categories.js) — no es data de demo,
 -- es la estructura de categorías que la app necesita para funcionar.
 INSERT INTO categories (id, name, icon) VALUES

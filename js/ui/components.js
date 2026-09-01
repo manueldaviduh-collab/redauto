@@ -29,6 +29,14 @@ export function formatPrice(value) {
   return `$${Number(value).toFixed(2)}`;
 }
 
+// Los pedidos reales tienen un UUID completo como id — mostrarlo entero se
+// ve ilegible en una fila de lista. Los primeros 8 caracteres alcanzan para
+// que un comprador/vendedor identifique "cuál pedido es" al hablarlo con la
+// otra parte (ej. por WhatsApp), sin mostrar el UUID completo.
+export function shortOrderId(id) {
+  return String(id || '').slice(0, 8).toUpperCase();
+}
+
 export function whatsappLink(phone, message) {
   const digits = String(phone).replace(/\D/g, '');
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
@@ -69,6 +77,20 @@ export function verifiedBadge({ compact = false } = {}) {
 
 export function discountBadge(percent) {
   return `<span class="badge badge--discount">-${percent}%</span>`;
+}
+
+// Sólo estados reales que se pueden respaldar (ver
+// docs/PRINCIPIOS.md §4, Transparencia) — sin pasarela de pago ni envíos
+// conectados todavía, "en camino"/"entregado" serían inventados.
+const ORDER_STATUS = {
+  pendiente_pago: { label: 'Pendiente de pago', modifier: 'wait' },
+  pagado: { label: 'Pagado', modifier: 'ok' },
+  cancelado: { label: 'Cancelado', modifier: 'off' },
+};
+
+export function orderStatusBadge(status) {
+  const s = ORDER_STATUS[status] || ORDER_STATUS.pendiente_pago;
+  return `<span class="badge badge--${s.modifier}">${escapeHtml(s.label)}</span>`;
 }
 
 export function ratingInline(rating, reviewsCount) {

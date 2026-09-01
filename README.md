@@ -28,11 +28,12 @@ estado. La documentación de arquitectura completa vive en `docs/`:
   por un piloto cerrado con tiendas reales.
 
 > **Estado actual (se actualiza a medida que avanza el roadmap):** ya existe
-> un backend real (`server/`) para cuenta de usuario/tienda y catálogo de
-> productos — ver "Backend real" más abajo. Carrito, favoritos, garage de
-> vehículos, notificaciones y checkout **todavía** viven en `localStorage`
-> del navegador — ver `docs/ARQUITECTURA.md` §11 para el detalle completo
-> de qué falta y `docs/ROADMAP.md` para el orden en que se resuelve.
+> un backend real (`server/`) para cuenta de usuario/tienda, catálogo de
+> productos y **pedidos** — ver "Backend real" más abajo. El carrito (antes
+> de confirmar la compra), favoritos, garage de vehículos y notificaciones
+> **todavía** viven en `localStorage` del navegador — ver
+> `docs/ARQUITECTURA.md` §11 para el detalle completo de qué falta y
+> `docs/ROADMAP.md` para el orden en que se resuelve.
 
 ## Cómo ejecutar el proyecto
 
@@ -195,7 +196,7 @@ js/
     cartService.js        Carrito (localStorage) + evento global de cambio
     favoritesService.js   Favoritos de productos y de tiendas (localStorage)
     authService.js         Cuenta y sesión reales contra el backend (JWT)
-    orderService.js         Historial de pedidos + checkout (localStorage, sin pagos reales)
+    orderService.js         Pedidos reales contra el backend (checkout, historial), sin pagos automatizados
     sellerService.js         Panel de vendedor: productos, tienda, compatibilidad, import Excel y fotos reales
     notificationService.js   Centro de notificaciones (leído/no leído, localStorage)
     adminService.js           Panel de administración: listar tiendas por estado, aprobar/rechazar
@@ -257,20 +258,25 @@ llamada a un backend real, no debería tocar ninguna pantalla.
    por pestañas accesible desde Perfil.
 9. **Centro de notificaciones** — pantalla con pedidos, ofertas y novedades,
    estado leído/no leído persistido.
-10. **Carrito y checkout** — agregar/quitar/actualizar cantidades, persistido
-    en `localStorage`; CTA del carrito es **"Continuar al pago"** y el de
-    checkout es específico, **"Pagar $XX.XX"** (nunca un "Continuar"
-    ambiguo). Checkout exige sesión iniciada, pide datos de entrega y crea un
-    pedido en estado explícito **"Pendiente de pago (MVP)"** — no se simula
-    ningún pago exitoso; una nota de "Protección de compra RedAuto" refuerza
-    que el pedido y el historial quedan dentro de la plataforma.
+10. **Carrito y checkout** — agregar/quitar/actualizar cantidades, el
+    carrito persiste en `localStorage` (borrador de compra, antes de
+    confirmar); CTA del carrito es **"Continuar al pago"** y el de checkout
+    es específico, **"Pagar $XX.XX"** (nunca un "Continuar" ambiguo).
+    Checkout exige sesión iniciada, pide datos de entrega y crea un
+    **pedido real** (`POST /api/orders`, precio y nombre resueltos y
+    congelados del lado del servidor) en estado explícito **"pendiente de
+    pago"** — no se simula ningún pago exitoso; una nota de "Protección de
+    compra RedAuto" refuerza que el pedido y el historial quedan dentro de
+    la plataforma, ahora persistidos de verdad.
 11. **Cuenta** — login/registro **reales** contra el backend (contraseñas
     con hash, sesión con JWT), sin cuentas de demostración. Al registrarse,
     marcar "Quiero vender en RedAuto" crea además una tienda real asociada
     a la cuenta. Perfil con historial de pedidos y accesos a
     vehículos/favoritos/notificaciones.
 12. **Panel de vendedor** — sólo accesible con una cuenta de rol `vendedor`:
-    resumen de ventas, pedidos de la tienda, inventario con alta/edición de
+    resumen de ventas reales, **pedidos reales de la tienda** (con botón
+    para marcarlos "Pagado" o "Cancelar" — el vendedor confirma el cobro a
+    mano, sin pasarela de pago todavía), inventario con alta/edición de
     productos (con compatibilidad de vehículo real, obligatoria) **e
     importación masiva por Excel**, todo **persistido en la base de datos
     real** (no en `localStorage`), edición de la info de la empresa, y
@@ -310,14 +316,21 @@ muestra):**
   reales y **verificados** del backend, para que lo que subas aparezca en
   la misma navegación sin ninguna pantalla nueva, apenas se apruebe tu
   tienda.
+- **Pedidos reales**: al confirmar la compra en el checkout, se crea un
+  pedido de verdad en la base de datos — precio y nombre de cada línea
+  resueltos y congelados del lado del servidor (nunca del cliente), visible
+  desde cualquier dispositivo tanto para el comprador ("Mis pedidos" en
+  Perfil) como para cada tienda involucrada (pestaña Pedidos del panel de
+  vendedor). Sin pasarela de pago conectada todavía: el pedido queda
+  "pendiente de pago" y el vendedor lo marca "Pagado" a mano tras confirmar
+  el cobro coordinado por fuera (WhatsApp/transferencia).
 
 **Todavía simulado en el navegador (sin servidor) — ver
 `docs/ROADMAP.md` para el orden en que se conecta cada uno:**
-- Carrito, favoritos (productos y tiendas) y garage de vehículos
-  (`localStorage`).
-- Pedidos creados en checkout: no hay pasarela de pago real conectada, y el
-  pedido en sí todavía se guarda en `localStorage` (no en el backend) —
-  siguiente paso natural una vez el flujo de compra esté validado.
+- Carrito (antes de confirmar la compra), favoritos (productos y tiendas) y
+  garage de vehículos (`localStorage`) — el carrito se queda ahí a
+  propósito: es un borrador de bajo riesgo, no un dato de negocio que se
+  pierda si desaparece.
 - Importación masiva de fotos (ZIP o URLs por columna en el Excel): la
   subida de fotos una por una ya es real, pero cargar muchas de golpe sigue
   siendo sólo diseño (`docs/BASE_DE_DATOS.md` §4.1), a propósito.
@@ -329,9 +342,10 @@ muestra):**
 
 **Cómo sigue conectándose el resto sin rediseñar pantallas:** cada
 `services/*.js` expone funciones `async` con un contrato estable, así que
-mover carrito/pedidos/favoritos al backend es el mismo patrón ya usado para
-auth y productos — reemplazar el cuerpo de la función, no su firma (ver
-`docs/ARQUITECTURA.md` §12). El esquema relacional completo (incluidas las
+mover favoritos/garage al backend (si algún día hace falta) es el mismo
+patrón ya usado para auth, productos y pedidos — reemplazar el cuerpo de la
+función, no su firma (ver `docs/ARQUITECTURA.md` §12). El esquema
+relacional completo (incluidas las
 tablas que el backend actual todavía no usa) está en
 [`docs/BASE_DE_DATOS.md`](docs/BASE_DE_DATOS.md).
 
