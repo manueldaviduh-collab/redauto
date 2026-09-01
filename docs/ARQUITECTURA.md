@@ -486,7 +486,10 @@ Screen". Es una capa de configuración separada de la app en sí
 (`manifest.webmanifest`, `sw.js`, `js/pwa.js`), sin dependencias desde
 `services/` ni `screens/` hacia ella ni viceversa — se puede quitar o
 reemplazar sin tocar ninguna pantalla. El service worker cachea únicamente
-el shell estático (HTML/CSS/JS/íconos) con una estrategia
-stale-while-revalidate; nunca cachea `/api/*` ni ningún origen distinto al
-propio, así que no interfiere con la Transparencia de datos reales descrita
-en `docs/PRINCIPIOS.md` §4.
+el shell estático (HTML/CSS/JS/íconos) con una estrategia network-first
+(pide la red primero y sólo cae a la caché si no hay conexión) — así una
+actualización publicada se ve apenas se reabre la app con señal, sin la
+demora de un ciclo extra que tenía la estrategia stale-while-revalidate
+original. Nunca cachea `/api/*` ni ningún origen distinto al propio, así
+que no interfiere con la Transparencia de datos reales descrita en
+`docs/PRINCIPIOS.md` §4.

@@ -3,13 +3,16 @@
 // reales (backend, ver server/) siempre van directo a la red. Ver
 // docs/ARQUITECTURA.md para cómo esto se conecta con el resto del proyecto.
 //
-// Estrategia: stale-while-revalidate para el shell. Cada visita sirve la
-// copia en caché al instante (rápido, funciona offline) y en paralelo pide
-// la versión de red y la guarda para la próxima carga — así una actualización
-// publicada llega sin que el usuario tenga que reinstalar el ícono, dentro
-// de una recarga o dos. Cambiar CACHE_VERSION fuerza una limpieza completa
-// de caché (usarlo solo si algún día hace falta invalidar todo de una vez).
-const CACHE_VERSION = 'redauto-shell-v1';
+// Estrategia: network-first para el shell. Cada visita pide la versión de
+// red primero y la sirve (así una actualización publicada se ve de
+// inmediato, sin recargar dos veces) y sólo si no hay red cae a la copia en
+// caché (para que la app siga abriendo sin conexión). Antes era
+// stale-while-revalidate (servía la caché vieja al instante y recién
+// actualizaba en segundo plano) — eso mostraba la versión anterior en la
+// primera visita después de cada despliegue, hasta la siguiente recarga.
+// Cambiar CACHE_VERSION fuerza además una limpieza completa de caché
+// (usarlo si algún día hace falta invalidar todo de una vez).
+const CACHE_VERSION = 'redauto-shell-v2';
 
 const PRECACHE_URLS = [
   '/',
@@ -58,7 +61,9 @@ const PRECACHE_URLS = [
   '/js/ui/icons.js',
   '/js/ui/modal.js',
   '/js/ui/productArt.js',
+  '/js/ui/productImport.js',
   '/js/ui/toast.js',
+  '/js/data/venezuelaStates.js',
   '/js/pwa.js',
   '/assets/favicon.png',
   '/assets/logo-mark.png',
@@ -112,17 +117,20 @@ self.addEventListener('fetch', (event) => {
   const cacheKey = isNavigation ? '/' : request;
 
   event.respondWith(
-    caches.open(CACHE_VERSION).then(async (cache) => {
-      const cached = await cache.match(cacheKey);
-      const network = fetch(request)
-        .then((response) => {
-          if (response && response.ok) cache.put(cacheKey, response.clone());
-          return response;
-        })
-        .catch(() => null);
-      // Sirve caché al instante si existe; si no, espera la red (primera
-      // visita / offline sin caché todavía).
-      return cached || (await network) || Response.error();
-    })
+    (async () => {
+      const cache = await caches.open(CACHE_VERSION);
+      try {
+        // no-store: sin esto, el navegador puede servir el propio caché
+        // HTTP (no el de este service worker) para esta misma URL, y el
+        // "network-first" de acá nunca llegaría a tocar la red de verdad.
+        const response = await fetch(request, { cache: 'no-store' });
+        if (response && response.ok) cache.put(cacheKey, response.clone());
+        return response;
+      } catch {
+        // Sin red (offline) — cae a la copia en caché más reciente.
+        const cached = await cache.match(cacheKey);
+        return cached || Response.error();
+      }
+    })()
   );
 });

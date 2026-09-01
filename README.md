@@ -131,15 +131,15 @@ nombre "RedAuto", y se actualiza sola. Es puramente configuración añadida
   y la carga de `js/pwa.js`. La pantalla de carga (splash) y todo lo demás
   quedaron intactos.
 
-**Cómo se actualiza sin reinstalar:** el service worker sirve la copia en
-caché al instante y, en paralelo, siempre pide la versión de red y la
-guarda para la próxima vez ("stale-while-revalidate") — así que cualquier
-cambio que publiques (una pantalla, un estilo, una corrección) llega a tu
-iPhone dentro de un par de aperturas de la app, sin tocar el ícono. Si
-alguna vez publicas un cambio en `sw.js` mismo (por ejemplo, para cambiar
-la estrategia de caché), el navegador lo detecta solo, activa la versión
-nueva y recarga la pestaña abierta una sola vez — no hace falta desinstalar
-nada.
+**Cómo se actualiza sin reinstalar:** el service worker pide siempre la
+versión de red primero ("network-first") — así que cualquier cambio que
+publiques (una pantalla, un estilo, una corrección) se ve en tu iPhone
+apenas abras la app de nuevo con conexión, sin tocar el ícono. Sólo si no
+hay conexión cae a la última copia guardada en caché, para que la app siga
+abriendo offline. Si alguna vez publicas un cambio en `sw.js` mismo (por
+ejemplo, para cambiar la estrategia de caché), el navegador lo detecta
+solo, activa la versión nueva y recarga la pestaña abierta una sola vez —
+no hace falta desinstalar nada.
 
 **Cómo probarlo ya mismo (en este entorno, sin instalar todavía):**
 ```bash
