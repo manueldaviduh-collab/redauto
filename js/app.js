@@ -1,6 +1,9 @@
 import { startRouter } from './router.js';
 
-const SPLASH_MIN_MS = 1700;
+// 2000ms le da tiempo a la secuencia coreografiada del splash (logo → brillo
+// → nombre → tagline → barra) para asentarse antes de desaparecer — ver
+// css/styles.css, sección "Splash screen".
+const SPLASH_MIN_MS = 2000;
 const splashShownAt = Date.now();
 
 startRouter();
