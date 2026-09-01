@@ -14,6 +14,7 @@ import * as login from './screens/login.js';
 import * as register from './screens/register.js';
 import * as profile from './screens/profile.js';
 import * as seller from './screens/seller.js';
+import * as admin from './screens/admin.js';
 import * as myVehicles from './screens/myVehicles.js';
 import * as favorites from './screens/favorites.js';
 import * as notifications from './screens/notifications.js';
@@ -30,6 +31,7 @@ const ROUTES = [
   { test: (s) => s[0] === 'registro', screen: register },
   { test: (s) => s[0] === 'perfil', screen: profile, root: '/perfil' },
   { test: (s) => s[0] === 'vendedor', screen: seller },
+  { test: (s) => s[0] === 'admin', screen: admin },
   { test: (s) => s[0] === 'mis-vehiculos', screen: myVehicles },
   { test: (s) => s[0] === 'favoritos', screen: favorites },
   { test: (s) => s[0] === 'notificaciones', screen: notifications },

@@ -123,17 +123,19 @@ empezar a vender sin que el fundador intervenga manualmente en cada paso.
 **Ya construido (adelantado desde Etapa 1, ver arriba):** registro de
 tienda self-service con RIF/responsable/WhatsApp/dirección/estado/
 categorías, verificación real (pendiente por defecto, un admin aprueba),
-compatibilidad de vehículos real, importación masiva por Excel, y subida
+compatibilidad de vehículos real, importación masiva por Excel, subida
 real de fotos de producto a Cloudinary (hasta 8 por producto, con
-borrar/reordenar — ver `ARQUITECTURA.md` §9 y `BASE_DE_DATOS.md` §4.1).
+borrar/reordenar — ver `ARQUITECTURA.md` §9 y `BASE_DE_DATOS.md` §4.1), y
+**panel de administración con interfaz** (`#/admin`, sólo accesible con
+rol `admin` — ver `server/README.md`, "Panel de administración") para
+aprobar/rechazar tiendas sin tocar SQL.
 
 **Qué falta todavía dentro de esta etapa:**
-- Subida de documentos reales para la solicitud (`store_verification_requests`,
-  ver `BASE_DE_DATOS.md` §4.1) y un panel de administración **con
-  interfaz** para aprobar/rechazar — hoy quien aprueba sigue siendo el
-  fundador, pero por SQL/API directo, no desde una pantalla (aunque quien
-  apruebe siga siendo una persona, no un proceso automático —
-  automatizar KYC de verdad es un problema aparte, no crítico todavía).
+- Subida de documentos reales para la solicitud
+  (`store_verification_requests`, ver `BASE_DE_DATOS.md` §4.1) — el panel
+  ya deja aprobar/rechazar con interfaz, pero todavía no adjuntar/revisar
+  documentos ni guardar historial de revisión (automatizar KYC de verdad es
+  un problema aparte, no crítico todavía).
 - Importación masiva de fotos (ZIP o URLs por columna en el Excel) —
   diseño completo en `BASE_DE_DATOS.md` §4.1, deliberadamente sin construir
   todavía (la subida individual ya sí es real).

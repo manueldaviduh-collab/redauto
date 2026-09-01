@@ -281,21 +281,23 @@ otra tienda aunque intente mandar un `storeId` ajeno a mano (ver
 tiendas `'verificada'`; una tienda pendiente puede cargar su inventario
 completo mientras espera, pero no aparece en el catálogo público hasta que
 se aprueba. La aprobación es un tercer rol, `admin` (nadie lo tiene por
-defecto), que puede aprobar/rechazar por `PATCH
-/api/stores/:id/verification` — hoy sin panel de administración con
-interfaz, se asigna el rol y se aprueba por SQL directo (ver
-`server/README.md`, "Aprobar una tienda"). Es KYC real en el sentido de
-que un humano revisa antes de publicar, pero manual — automatizarlo (subida
-de documentos, historial de revisión) es `store_verification_requests` en
-`BASE_DE_DATOS.md` §4.1, todavía objetivo.
+defecto — se asigna a mano por SQL, una sola vez por persona, nunca
+self-service), que aprueba/rechaza desde un **panel con interfaz**
+(`#/admin`, `js/screens/admin.js`) que llama a `GET /api/stores/admin` y
+`PATCH /api/stores/:id/verification` — cada endpoint revalida el rol del
+lado del servidor (`requireAdmin`), no es sólo una pantalla oculta en el
+cliente (ver `server/README.md`, "Panel de administración"). Es KYC real
+en el sentido de que un humano revisa antes de publicar, pero manual —
+automatizarlo (subida de documentos, historial de revisión) es
+`store_verification_requests` en `BASE_DE_DATOS.md` §4.1, todavía
+objetivo.
 
 **Lo que falta antes de un volumen/sensibilidad mayores** (ver
 `server/README.md`, sección de seguridad, y `ROADMAP.md`): límite de
-intentos de login (rate limiting), un panel de administración con interfaz
-para aprobar tiendas en vez de SQL directo. Row Level Security (RLS) de
-Postgres sigue siendo una capa adicional razonable si en algún momento se
-migra a Supabase o se agregan más roles/endpoints donde sea fácil
-olvidarse de un `if` de autorización en el código de la API.
+intentos de login (rate limiting). Row Level Security (RLS) de Postgres
+sigue siendo una capa adicional razonable si en algún momento se migra a
+Supabase o se agregan más roles/endpoints donde sea fácil olvidarse de un
+`if` de autorización en el código de la API.
 
 ## 9. Almacenamiento de imágenes
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { requireAuth, requireSeller, requireAdmin } from '../middleware/auth.js';
+import { requireAuth, requireSeller, requireAdmin, optionalAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 
 export const storesRouter = Router();
@@ -122,9 +122,30 @@ storesRouter.patch('/mine', requireAuth, requireSeller, asyncHandler(async (req,
   res.json(await withExtras(result.rows[0]));
 }));
 
+// GET /api/stores/admin — todas las tiendas sin importar su estado (a
+// diferencia de GET /, que solo muestra verificadas), para el panel de
+// administración. ?status=pendiente|verificada|rechazada filtra; sin el
+// query param trae todas, pendientes primero (las que necesitan revisión).
+storesRouter.get('/admin', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const { status } = req.query;
+  const clauses = [];
+  const params = [];
+  if (['pendiente', 'verificada', 'rechazada'].includes(status)) {
+    params.push(status);
+    clauses.push(`verification_status = $${params.length}`);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const result = await pool.query(
+    `SELECT * FROM stores ${where}
+     ORDER BY (verification_status = 'pendiente') DESC, created_at DESC`,
+    params
+  );
+  res.json(await Promise.all(result.rows.map(withExtras)));
+}));
+
 // PATCH /api/stores/:id/verification — aprobar/rechazar una tienda
-// pendiente. Solo un admin (ver server/README.md, "Aprobar una tienda" —
-// hoy no hay panel de administración, se asigna el rol a mano por SQL).
+// pendiente. Solo un admin (ver server/README.md, "Aprobar una tienda", y
+// el panel en js/screens/admin.js).
 storesRouter.patch('/:id/verification', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const { status } = req.body || {};
   if (!['verificada', 'rechazada', 'pendiente'].includes(status)) {
@@ -138,8 +159,16 @@ storesRouter.patch('/:id/verification', requireAuth, requireAdmin, asyncHandler(
   res.json(await withExtras(result.rows[0]));
 }));
 
-storesRouter.get('/:id', asyncHandler(async (req, res) => {
+// GET /api/stores/:id — pública sólo si la tienda ya está verificada (igual
+// que GET /). Un admin autenticado (optionalAuth: no rechaza si no manda
+// token) puede ver cualquiera, para revisarla antes de aprobar/rechazar
+// desde el panel.
+storesRouter.get('/:id', optionalAuth, asyncHandler(async (req, res) => {
   const result = await pool.query('SELECT * FROM stores WHERE id = $1', [req.params.id]);
-  if (!result.rows[0]) return res.status(404).json({ error: 'Tienda no encontrada.' });
-  res.json(await withExtras(result.rows[0]));
+  const store = result.rows[0];
+  const isAdmin = req.auth?.role === 'admin';
+  if (!store || (store.verification_status !== 'verificada' && !isAdmin)) {
+    return res.status(404).json({ error: 'Tienda no encontrada.' });
+  }
+  res.json(await withExtras(store));
 }));

@@ -25,7 +25,10 @@ export const storeService = {
     const local = getStoreById(id);
     if (local) return local;
     try {
-      return await api.get(`/stores/${id}`);
+      // auth:true manda el token si hay uno logueado (no pasa nada si no lo
+      // hay) — permite que un admin pueda previsualizar una tienda pendiente
+      // desde el panel de administración, sin cambiar nada para nadie más.
+      return await api.get(`/stores/${id}`, { auth: true });
     } catch {
       return null;
     }

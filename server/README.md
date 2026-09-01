@@ -37,14 +37,17 @@ Hace:
 - Lectura pública de tiendas y productos — **solo de tiendas ya
   verificadas**: una tienda pendiente o rechazada nunca aparece en el
   catálogo público, aunque ya tenga productos cargados.
+- **Panel de administración con interfaz** (`#/admin` en el frontend, sólo
+  visible/accesible para cuentas con rol `admin`): lista de tiendas por
+  estado (pendientes/verificadas/rechazadas/todas), con botones para
+  aprobar o rechazar. Ver "Panel de administración" más abajo.
 
 Todavía no hace (ver `docs/ROADMAP.md` para el orden en que se agrega):
 carrito/pedidos reales, pagos, envíos, importación masiva de fotos (ZIP o
 URLs por Excel — diseño en `docs/BASE_DE_DATOS.md` §4.1, la subida
-individual ya sí es real), reseñas, notificaciones push, panel de
-administración con interfaz (la aprobación de tiendas hoy es por SQL o por
-API, ver abajo). El frontend sigue resolviendo carrito/pedidos en
-`localStorage`, documentado en el README raíz.
+individual ya sí es real), reseñas, notificaciones push. El frontend sigue
+resolviendo carrito/pedidos en `localStorage`, documentado en el README
+raíz.
 
 ## Requisitos
 
@@ -132,15 +135,27 @@ contenido completo de `src/schema.sql` en la consola de tu proveedor de
 Postgres (o `psql "$DATABASE_URL" -f src/schema.sql` si tienes `psql` a
 mano) y listo — las tiendas y productos que ya tenías **no se tocan**.
 
-## Aprobar una tienda
+## Panel de administración
 
 Toda tienda que se autorregistra queda `verification_status = 'pendiente'`
-— no es visible para compradores hasta que se apruebe. Todavía no hay un
-panel de administración con interfaz (ver `docs/ROADMAP.md`, Etapa 2), así
-que aprobar/rechazar se hace de una de estas dos formas:
+— no es visible para compradores hasta que se apruebe.
 
-**Opción rápida — SQL directo** (recomendada mientras seas tú el único
-revisando tiendas):
+**Opción normal — el panel con interfaz (`#/admin` en el frontend):**
+lista de tiendas por estado, con botones "Aprobar"/"Rechazar" y un enlace
+para previsualizar la tienda antes de decidir. Para que una cuenta pueda
+entrar, primero necesita el rol `admin` — **nadie lo tiene por defecto, ni
+hay forma de dárselo desde la app**; se asigna a mano, una sola vez por
+persona, después de que esa persona ya se haya registrado normal:
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'correo-de-la-persona@ejemplo.com';
+```
+Con esa cuenta logueada, en el menú de "Mi cuenta" aparece **"Panel de
+administración"**. Cada acción del panel (listar, aprobar, rechazar) se
+revalida contra este mismo rol del lado del servidor — no es sólo una
+pantalla oculta, el backend rechaza la petición igual si alguien intenta
+llamarla sin el rol.
+
+**Opción SQL directa** (sirve para casos puntuales sin pasar por el panel):
 ```sql
 -- Ver las tiendas pendientes
 SELECT id, name, rif, city, state, created_at FROM stores WHERE verification_status = 'pendiente';
@@ -149,15 +164,9 @@ SELECT id, name, rif, city, state, created_at FROM stores WHERE verification_sta
 UPDATE stores SET verification_status = 'verificada' WHERE id = 'el-id-de-la-tienda';
 ```
 
-**Opción API** (ya construida, útil si en el futuro armas un panel encima):
-primero necesitas una cuenta con rol `admin` — ningún usuario lo tiene por
-defecto:
-```sql
-UPDATE users SET role = 'admin' WHERE email = 'tu-correo@ejemplo.com';
+**Opción API directa** (lo que usa el panel por debajo):
 ```
-Con esa cuenta logueada (mismo `POST /api/auth/login` de siempre, el token
-ya trae el rol), aprobar o rechazar:
-```
+GET /api/stores/admin?status=pendiente
 PATCH /api/stores/:id/verification
 Authorization: Bearer <token de una cuenta admin>
 { "status": "verificada" }   -- o "rechazada"
@@ -180,13 +189,14 @@ apunte a él:
    vehículos y hasta 8 fotos reales), o **Importar por Excel** para cargar
    muchos de una vez (descarga la plantilla desde el mismo botón; las
    fotos se cargan aparte, producto por producto).
-5. Apruébate la tienda (ver "Aprobar una tienda" arriba) — recién ahí se
-   vuelve visible para compradores. El inventario ya cargado no hay que
+5. Apruébate la tienda (ver "Panel de administración" arriba) — recién ahí
+   se vuelve visible para compradores. El inventario ya cargado no hay que
    volver a tocarlo, aparece solo apenas se aprueba.
 
 No hace falta ninguna consola de base de datos para los pasos 1-4 — es el
 mismo flujo que usará cualquier tienda real que se registre después. El
-paso 5 sí es manual hoy, a propósito (ver "Qué hace" arriba).
+paso 5 sigue siendo una decisión humana a propósito (nunca automática),
+pero ya tiene una pantalla — no hace falta SQL para el día a día.
 
 ## Referencia rápida de endpoints
 
@@ -209,10 +219,11 @@ paso 5 sí es manual hoy, a propósito (ver "Qué hace" arriba).
 | DELETE | `/api/products/:id/images/:imageId` | Bearer (vendedor) | Borra una foto (base + Cloudinary) |
 | PATCH | `/api/products/:id/images/:imageId` | Bearer (vendedor) | Reordena — body `{"direction":"up"\|"down"}` |
 | GET | `/api/stores` | — | Tiendas verificadas |
-| GET | `/api/stores/:id` | — | Una tienda + su catálogo resumido |
+| GET | `/api/stores/:id` | — (admin ve cualquiera) | Una tienda + su catálogo resumido; pública sólo si está verificada |
 | GET | `/api/stores/mine` | Bearer (vendedor) | Tu tienda, sin importar el estado de verificación |
 | PATCH | `/api/stores/mine` | Bearer (vendedor) | Editar los datos de tu tienda (nunca su verificación) |
-| PATCH | `/api/stores/:id/verification` | Bearer (admin) | Aprobar/rechazar una tienda — ver "Aprobar una tienda" arriba |
+| GET | `/api/stores/admin` | Bearer (admin) | Todas las tiendas, cualquier estado — `?status=pendiente\|verificada\|rechazada` filtra |
+| PATCH | `/api/stores/:id/verification` | Bearer (admin) | Aprobar/rechazar una tienda — ver "Panel de administración" arriba |
 
 ## Seguridad — qué ya está y qué falta antes de manejar datos sensibles reales
 

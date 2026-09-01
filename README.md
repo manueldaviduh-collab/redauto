@@ -95,9 +95,9 @@ se quitaron del frontend. Para vender en RedAuto:
    oficial descargable desde el mismo botón, pensada para cientos o miles
    de productos — las fotos se cargan aparte, producto por producto).
 4. Una tienda pendiente **no aparece para compradores** hasta que se
-   aprueba — ver `server/README.md`, sección "Aprobar una tienda", para
-   cómo hacerlo (hoy es SQL/API directo, sin panel de administración con
-   interfaz todavía).
+   aprueba — quien tenga rol de administrador lo hace desde **Panel de
+   administración** (`#/admin`, un enlace más en "Mi cuenta"), ver
+   `server/README.md`, sección "Panel de administración".
 
 Una cuenta sin marcar esa casilla queda como comprador normal (igual que
 cualquier persona real usando la app).
@@ -198,6 +198,7 @@ js/
     orderService.js         Historial de pedidos + checkout (localStorage, sin pagos reales)
     sellerService.js         Panel de vendedor: productos, tienda, compatibilidad, import Excel y fotos reales
     notificationService.js   Centro de notificaciones (leído/no leído, localStorage)
+    adminService.js           Panel de administración: listar tiendas por estado, aprobar/rechazar
   ui/                   Presentación reutilizable
     icons.js, productArt.js (ilustraciones de producto), components.js,
     toast.js, modal.js, chat.js ("Preguntar a la tienda"),
@@ -205,6 +206,7 @@ js/
   screens/              Una pantalla = una función render(container, params)
     home.js, search.js, product.js, stores.js, storeDetail.js,
     cart.js, checkout.js, login.js, register.js, profile.js, seller.js,
+    admin.js (panel de administración, sólo rol admin),
     myVehicles.js, favorites.js, notifications.js
 ```
 
@@ -283,8 +285,11 @@ muestra):**
 - Registro de tienda completo (RIF, responsable, WhatsApp, dirección,
   estado, categorías) — parte del mismo flujo de registro, con la opción
   "Quiero vender en RedAuto". La tienda queda **pendiente de verificación
-  real**, no se auto-publica (ver `server/README.md`, "Aprobar una
-  tienda").
+  real**, no se auto-publica.
+- **Panel de administración** (`#/admin`, sólo visible/accesible con rol
+  `admin` — nadie lo tiene por defecto, se asigna a mano): lista de tiendas
+  por estado con aprobar/rechazar de un toque, en vez de SQL directo (ver
+  `server/README.md`, "Panel de administración").
 - Alta y edición de productos desde el panel de vendedor
   (`sellerService`/`productService`), **con compatibilidad de vehículos
   real y obligatoria** (marca/modelo/año/motor/versión, varios vehículos
@@ -316,9 +321,6 @@ muestra):**
 - Importación masiva de fotos (ZIP o URLs por columna en el Excel): la
   subida de fotos una por una ya es real, pero cargar muchas de golpe sigue
   siendo sólo diseño (`docs/BASE_DE_DATOS.md` §4.1), a propósito.
-- Aprobación de tiendas: el estado ya es real, pero aprobar/rechazar hoy es
-  SQL/API directo (ver `server/README.md`) — todavía no hay un panel de
-  administración con interfaz.
 - Notificaciones y reseñas: datos de muestra fijos.
 - Chat "Preguntar a la tienda": las respuestas se generan en el cliente a
   partir de los datos reales del producto/tienda (no hay mensajería real ni

@@ -58,6 +58,11 @@ export async function render(container) {
         <span>${icon('store', { size: 18 })} Ir al panel de vendedor</span>
         ${icon('chevronRight', { size: 18 })}
       </a>` : ''}
+      ${user.role === 'admin' ? `
+      <a href="#/admin" class="seller-cta">
+        <span>${icon('shieldCheck', { size: 18 })} Panel de administración</span>
+        ${icon('chevronRight', { size: 18 })}
+      </a>` : ''}
 
       <div class="menu-list">
         <a href="#/mis-vehiculos" class="menu-row">

@@ -30,6 +30,25 @@ export function requireAuth(req, res, next) {
   }
 }
 
+// Igual que requireAuth, pero nunca rechaza: si no hay token o es inválido,
+// simplemente sigue sin req.auth. Sirve para rutas públicas que además
+// quieren dar más acceso si quien pregunta resulta ser un admin (ver GET
+// /api/stores/:id) sin duplicar la ruta en una versión "pública" y otra
+// "de admin".
+export function optionalAuth(req, res, next) {
+  const header = req.headers.authorization || '';
+  const [scheme, token] = header.split(' ');
+  if (scheme === 'Bearer' && token) {
+    try {
+      const payload = jwt.verify(token, JWT_SECRET);
+      req.auth = { id: payload.sub, role: payload.role };
+    } catch {
+      // Token vencido/inválido en una ruta pública: se ignora, no se rechaza.
+    }
+  }
+  next();
+}
+
 export function requireSeller(req, res, next) {
   if (req.auth?.role !== 'vendedor') {
     return res.status(403).json({ error: 'Esta acción es solo para cuentas de tienda.' });
