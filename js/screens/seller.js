@@ -530,7 +530,7 @@ function bindPhotoField(body, { isEdit, product }) {
   function render() {
     const existingHtml = existingImages.map((img, idx) => `
       <div class="photo-thumb" data-existing-id="${img.id}">
-        <img src="${escapeHtml(img.url)}" alt="Foto de producto" />
+        <div class="photo-thumb__frame"><img src="${escapeHtml(img.url)}" alt="Foto de producto" /></div>
         <div class="photo-thumb__actions">
           <button type="button" data-photo-move="up" ${idx === 0 ? 'disabled' : ''} aria-label="Mover antes">${icon('chevronLeft', { size: 14 })}</button>
           <button type="button" data-photo-move="down" ${idx === existingImages.length - 1 ? 'disabled' : ''} aria-label="Mover después">${icon('chevronRight', { size: 14 })}</button>
@@ -539,9 +539,11 @@ function bindPhotoField(body, { isEdit, product }) {
       </div>`).join('');
     const pendingHtml = pendingPhotos.map((p) => `
       <div class="photo-thumb photo-thumb--pending" data-pending-id="${p.tempId}">
-        <img src="${p.previewUrl}" alt="Foto pendiente de subir" />
-        <span class="photo-thumb__badge">Pendiente</span>
-        <button type="button" data-photo-remove-pending aria-label="Quitar foto">${icon('x', { size: 14 })}</button>
+        <div class="photo-thumb__frame"><img src="${p.previewUrl}" alt="Foto pendiente de subir" /></div>
+        <div class="photo-thumb__actions">
+          <span class="photo-thumb__label">Pendiente</span>
+          <button type="button" data-photo-remove-pending aria-label="Quitar foto">${icon('x', { size: 14 })}</button>
+        </div>
       </div>`).join('');
     grid.innerHTML = (existingHtml + pendingHtml) || '<p class="field-hint">Todavía no hay fotos.</p>';
   }

@@ -711,7 +711,7 @@ img, svg { display: block; max-width: 100%; }
   display: flex; align-items: flex-end; justify-content: center;
 }
 .modal-sheet {
-  width: 100%; max-width: 560px; max-height: 86vh; overflow-y: auto;
+  width: 100%; max-width: 560px; max-height: 86vh; overflow-y: auto; overflow-x: hidden;
   background: var(--color-surface); border-top-left-radius: var(--radius-lg); border-top-right-radius: var(--radius-lg);
   box-shadow: var(--shadow-sheet); padding: 8px 18px calc(20px + var(--safe-bottom));
   animation: sheet-up 0.22s ease;
@@ -750,8 +750,8 @@ img, svg { display: block; max-width: 100%; }
 /* ---------- Filtros ---------- */
 .filters-form__group { border: none; padding: 0; margin: 0 0 16px; }
 .filters-form__group legend { font-size: 12.5px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 8px; padding: 0; }
-.filters-form__row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-.filters-form__row--2 { grid-template-columns: 1fr 1fr; }
+.filters-form__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.filters-form__row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .filters-form__pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .pill {
   background: var(--color-surface-2); border: 1px solid var(--color-border); color: var(--color-text-secondary);
@@ -884,38 +884,38 @@ img, svg { display: block; max-width: 100%; }
   display: flex; gap: 8px; align-items: flex-start;
   background: var(--color-surface-2); border-radius: var(--radius-sm); padding: 10px;
 }
-.compat-row__fields { flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.compat-row__fields { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .compat-row__fields .field { gap: 4px; }
 .compat-row__fields .field__label { font-size: 11px; }
 
 /* ---------- Fotos de producto (panel de vendedor) ---------- */
-.photo-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.photo-grid { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
 .photo-thumb {
-  position: relative; width: 72px; height: 72px; border-radius: var(--radius-sm);
-  overflow: hidden; background: var(--color-surface-2); border: 1px solid var(--color-border);
+  width: 84px; border-radius: var(--radius-sm); overflow: hidden;
+  background: var(--color-surface-2); border: 1px solid var(--color-border);
 }
+.photo-thumb__frame { width: 84px; height: 84px; }
 .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.photo-thumb--pending { opacity: 0.75; }
-.photo-thumb__badge {
-  position: absolute; left: 3px; bottom: 3px; font-size: 9px; font-weight: 700;
-  background: rgba(0,0,0,0.6); color: #fff; padding: 1px 5px; border-radius: 4px;
-}
+.photo-thumb--pending .photo-thumb__frame { opacity: 0.8; }
+/* Barra de acciones siempre visible, en flujo normal (no encima de la
+   foto ni detrás de :hover) — en touch, un botón que sólo aparece con
+   :hover simulado necesita dos toques para responder (el primero solo
+   "revela", recién el segundo hace clic real). Con esto responde al
+   primer toque siempre, y el target es más grande y fácil de acertar. */
 .photo-thumb__actions {
-  position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: flex-end;
-  gap: 2px; padding: 3px; opacity: 0; background: linear-gradient(180deg, rgba(0,0,0,0.35), transparent 40%);
-  transition: opacity var(--transition-fast, 0.15s);
+  display: flex; align-items: center; gap: 2px;
+  background: var(--color-surface-2); border-top: 1px solid var(--color-border); padding: 2px;
 }
-.photo-thumb:hover .photo-thumb__actions, .photo-thumb:focus-within .photo-thumb__actions { opacity: 1; }
+.photo-thumb__label {
+  flex: 1; font-size: 10px; font-weight: 600; color: var(--color-text-muted);
+  text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .photo-thumb__actions button {
-  width: 20px; height: 20px; border-radius: 5px; border: none; background: rgba(0,0,0,0.55);
-  color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  width: 24px; height: 24px; flex-shrink: 0; border-radius: 5px; border: none; background: transparent;
+  color: var(--color-text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.photo-thumb__actions button:disabled { opacity: 0.35; cursor: default; }
-.photo-thumb > [data-photo-remove-pending] {
-  position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 5px;
-  border: none; background: rgba(0,0,0,0.55); color: #fff; display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-}
+.photo-thumb__actions button:not(:disabled):active { background: var(--color-border); }
+.photo-thumb__actions button:disabled { opacity: 0.3; cursor: default; }
 
 /* ---------- Importación masiva por Excel (panel de vendedor) ---------- */
 .import-flow > * + * { margin-top: 12px; }
