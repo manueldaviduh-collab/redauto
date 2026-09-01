@@ -135,19 +135,22 @@ CREATE INDEX IF NOT EXISTS product_compatibility_product_id_idx ON product_compa
 -- comprador: "qué productos sirven para esta marca/modelo".
 CREATE INDEX IF NOT EXISTS product_compatibility_vehicle_idx ON product_compatibility (vehicle_brand, vehicle_model);
 
--- Fotos reales de producto. Vacía hasta que se conecte un proveedor de
--- almacenamiento de imágenes (ver docs/ARQUITECTURA.md §9) — la tabla ya
--- queda lista para que el endpoint de subida solo tenga que insertar filas
--- acá, sin tocar el esquema de nuevo. `position` es el orden de la galería;
--- position 0 es la foto principal.
+-- Fotos reales de producto, subidas a Cloudinary (ver
+-- server/src/services/imageStorage.js). `position` es el orden de la
+-- galería; position 0 es la foto principal. `public_id` es el identificador
+-- que Cloudinary necesita para poder borrar la imagen ahí también cuando se
+-- borra la fila (si es NULL, es una fila de una foto anterior a que
+-- existiera este campo — no se intenta borrar nada en el proveedor).
 CREATE TABLE IF NOT EXISTS product_images (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id   UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   url          TEXT NOT NULL,
+  public_id    TEXT,
   position     INTEGER NOT NULL DEFAULT 0,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS product_images_product_id_idx ON product_images (product_id);
+ALTER TABLE product_images ADD COLUMN IF NOT EXISTS public_id TEXT;
 
 -- Taxonomía real (idéntica a js/data/categories.js) — no es data de demo,
 -- es la estructura de categorías que la app necesita para funcionar.

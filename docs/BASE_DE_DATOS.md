@@ -167,7 +167,7 @@ stores                   ✅ implementada (versión más chica: sin slug/hours/
 ├─ response_time_minutes       int NULL              -- objetivo, no implementado
 ├─ verification_status          enum('pendiente','verificada','rechazada')  -- default 'pendiente' ✅
 ├─ about                            text
-├─ logo_url                           text NULL  -- columna lista; sin subida real todavía (ver §4.1)
+├─ logo_url                           text NULL  -- columna lista; sin subida real todavía (logo de tienda, no fotos de producto — ver §4.1)
 ├─ cover_url                             text NULL  -- objetivo, no implementado
 ├─ rating_cached, reviews_count_cached, sales_count_cached, on_time_delivery_pct
 │                                      -- objetivo, no implementado: hoy la API devuelve 0/null honesto
@@ -206,10 +206,11 @@ products                 ✅ implementada (versión más chica: sin currency)
 INDEX (store_id), INDEX (category_id), INDEX (availability)
 UNIQUE (store_id, sku) WHERE sku IS NOT NULL  -- para que reimportar el mismo Excel actualice, no duplique
 
-product_images             ✅ implementada — tabla lista y en uso por la API,
-├─ id          uuid PK         pero vacía: sin proveedor de almacenamiento de
-├─ product_id   FK → products.id  imágenes conectado todavía (ver §4.1 y ARQUITECTURA.md §9)
+product_images             ✅ implementada — subida real a Cloudinary conectada
+├─ id          uuid PK         (ver ARQUITECTURA.md §9 y server/src/routes/products.js).
+├─ product_id   FK → products.id  Sigue vacía hasta que cada tienda suba sus fotos.
 ├─ url            text
+├─ public_id       text NULL      -- id de Cloudinary, para poder borrar la imagen ahí también
 └─ position         int             -- orden de la galería
 
 product_compatibility        ✅ implementada — obligatoria al crear un producto
@@ -282,42 +283,49 @@ store_verification_requests            -- objetivo, no implementado: hoy la
 └─ notes                          text NULL
 ```
 
-### 4.1. Diseño (sin implementar) — subida real de fotos y su importación masiva
+### 4.1. Subida real de fotos (✅ implementada) y su importación masiva (diseño, sin implementar)
 
-`product_images` ya existe y la API ya la lee/devuelve (§2) — lo único que
-falta es *quién escribe filas ahí*. Diseño para cuando se conecte un
-proveedor de almacenamiento (Cloudinary es el candidato más simple —
-`ARQUITECTURA.md` §9 y `DECISIONES.md` ya lo señalan como la opción sin
-Supabase):
+**Subida individual — implementada.** `product_images` ya existe, la API
+ya la lee/devuelve (§2), y desde esta versión también escribe filas ahí de
+verdad, subiendo a **Cloudinary** (`ARQUITECTURA.md` §9 y `DECISIONES.md`
+ya lo señalaban como la opción sin Supabase):
+- `POST /api/products/:id/images` (panel de vendedor, un producto a la
+  vez) recibe un archivo (`multipart/form-data`, igual que
+  `POST /api/products/import/preview` con Excel — mismo patrón, `multer`
+  en memoria, nunca a disco). El handler sube el buffer a Cloudinary
+  (`server/src/services/imageStorage.js`), y solo si eso responde bien
+  inserta la fila en `product_images` con la URL real que devuelve.
+  `DELETE /api/products/:id/images/:imageId` y
+  `PATCH .../images/:imageId` (reordena intercambiando posición con la
+  foto vecina) completan el CRUD. Máximo 8 fotos por producto.
+  Si el servidor no tiene las credenciales de Cloudinary configuradas
+  (variables `CLOUDINARY_*`, ver `server/.env.example`), estos tres
+  endpoints responden `503` en vez de fallar — el resto de la API sigue
+  funcionando.
+- `js/screens/seller.js` (formulario de producto, sección "Fotos") deja
+  previsualizar localmente antes de guardar (para un producto nuevo, se
+  suben recién al guardar el producto) y agregar/borrar/reordenar en vivo
+  para uno ya existente.
+- `productTile()` (`js/ui/components.js`) usa la primera foto real si el
+  producto tiene alguna, y sólo cae al SVG de `productArt.js` como
+  *fallback* cuando no hay ninguna — así quedó conectado sin tocar ninguna
+  pantalla que ya llama a `productTile()`.
 
-- **Subida individual** (panel de vendedor, un producto a la vez):
-  `POST /api/products/:id/images` recibe un archivo (`multipart/form-data`,
-  igual que ya hace `POST /api/products/import/preview` con Excel — mismo
-  patrón, `multer` en memoria, nunca a disco). El handler sube el buffer al
-  proveedor de storage, y solo si eso responde bien inserta la fila en
-  `product_images` con la URL real que devuelva. `DELETE
-  /api/products/:id/images/:imageId` y `PATCH .../images/:imageId`
-  (reordenar, cambiar `position`) completan el CRUD.
-- **Importación masiva** (la pieza que pide el punto 6 del pedido de
-  onboarding): dos variantes, ambas escriben sobre la misma tabla:
+**Importación masiva de fotos — sigue sin implementar, a propósito** (el
+pedido de onboarding pidió explícitamente "sólo preparar la estructura").
+Dos variantes, ambas escribirían sobre la misma tabla `product_images`
+reutilizando el endpoint de subida individual ya construido arriba:
   - **ZIP con imágenes**: el nombre de archivo dentro del ZIP es el SKU
     (`UI-001.jpg`, `UI-001-2.jpg` para una segunda foto del mismo
-    producto) — el backend descomprime en memoria, sube cada imagen al
-    proveedor, y asocia por SKU al producto ya existente de esa tienda
+    producto) — el backend descomprime en memoria, sube cada imagen a
+    Cloudinary, y asocia por SKU al producto ya existente de esa tienda
     (mismo mecanismo de "agrupar por SKU" que ya usa
     `productImportParser.js` para Excel).
   - **URLs por columna en el Excel**: agregar una columna
     `foto_url_1`/`foto_url_2`/... a la plantilla — el backend descarga
-    cada URL (con límite de tamaño y timeout) y la resube al proveedor
-    propio, en vez de enlazar la URL externa directo (para no depender de
-    que seguir existiendo un sitio de terceros).
-- Ninguna de las dos necesita otra tabla: la API de productos ya devuelve
-  `images: string[]` (vacío hoy, ver `toProductViewModel` en
-  `server/src/routes/products.js`) — cuando haya URLs reales ahí, conectar
-  la UI es cambiar `productTile()`
-  (`js/ui/components.js`) para usar la primera foto si existe y sólo caer
-  al SVG generado como *fallback* — sin tocar ninguna pantalla que ya
-  llama a `productTile()`.
+    cada URL (con límite de tamaño y timeout) y la resube a Cloudinary, en
+    vez de enlazar la URL externa directo (para no depender de que siga
+    existiendo un sitio de terceros).
 
 ## 5. Decisiones de diseño ya tomadas en el esquema (y por qué)
 
@@ -381,10 +389,10 @@ resto, cada uno desbloquea al siguiente:
    (`stores.verification_status`, ver §4.1 y `server/README.md`), esta
    tabla es para cuando ese flujo necesite subida de documentos e historial
    de revisión en vez de un solo campo que cambia un admin a mano.
-4. **`product_images` (subida real de fotos)** — diseño completo en §4.1,
-   pendiente de conectar un proveedor de almacenamiento externo.
-4. **`product_images` + storage real** — cuando el panel de vendedor
-   permita subir fotos reales (ver `ARQUITECTURA.md` §9).
+4. **`product_images` (subida real de fotos) — ✅ hecho**, ver §4.1 y
+   `ARQUITECTURA.md` §9. Sólo queda pendiente la importación masiva de
+   fotos (ZIP o URLs por Excel), diseñada en §4.1 pero deliberadamente sin
+   construir todavía.
 
 En cada paso, el contrato de `services/*.js` no cambia (ver
 `ARQUITECTURA.md` §12) — sólo cambia qué hay detrás de la función, tal

@@ -47,6 +47,7 @@ export const api = {
   get: (path, opts) => request(path, { ...opts, method: 'GET' }),
   post: (path, body, opts) => request(path, { ...opts, method: 'POST', body }),
   patch: (path, body, opts) => request(path, { ...opts, method: 'PATCH', body }),
+  del: (path, opts) => request(path, { ...opts, method: 'DELETE' }),
 
   // Subida de archivos (multipart/form-data) — usada por la importación
   // masiva por Excel (ver js/ui/productImport.js). No pasa por request()

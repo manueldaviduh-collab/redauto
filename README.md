@@ -90,9 +90,10 @@ se quitaron del frontend. Para vender en RedAuto:
    en la base de datos, **pendiente de verificación** — la app te lleva
    directo al **Panel de vendedor**, pestaña Inventario, donde ya puedes
    cargar tus productos reales aunque la aprobación todavía no haya
-   pasado: uno por uno (con compatibilidad de vehículo obligatoria), o de
-   golpe con **Importar por Excel** (plantilla oficial descargable desde
-   el mismo botón, pensada para cientos o miles de productos).
+   pasado: uno por uno (con compatibilidad de vehículo obligatoria y hasta
+   8 fotos reales), o de golpe con **Importar por Excel** (plantilla
+   oficial descargable desde el mismo botón, pensada para cientos o miles
+   de productos — las fotos se cargan aparte, producto por producto).
 4. Una tienda pendiente **no aparece para compradores** hasta que se
    aprueba — ver `server/README.md`, sección "Aprobar una tienda", para
    cómo hacerlo (hoy es SQL/API directo, sin panel de administración con
@@ -195,7 +196,7 @@ js/
     favoritesService.js   Favoritos de productos y de tiendas (localStorage)
     authService.js         Cuenta y sesión reales contra el backend (JWT)
     orderService.js         Historial de pedidos + checkout (localStorage, sin pagos reales)
-    sellerService.js         Panel de vendedor: productos, tienda, compatibilidad e import Excel reales
+    sellerService.js         Panel de vendedor: productos, tienda, compatibilidad, import Excel y fotos reales
     notificationService.js   Centro de notificaciones (leído/no leído, localStorage)
   ui/                   Presentación reutilizable
     icons.js, productArt.js (ilustraciones de producto), components.js,
@@ -294,6 +295,11 @@ muestra):**
   fila antes de tocar la base, e importación de cientos/miles de productos
   con sus compatibilidades. Re-subir el mismo SKU actualiza en vez de
   duplicar.
+- **Fotos reales de producto**: hasta 8 fotos por producto, subidas a
+  Cloudinary desde el panel de vendedor, con vista previa antes de guardar,
+  y borrar/reordenar sobre un producto ya existente. Un producto sin fotos
+  todavía sigue mostrando la ilustración por categoría generada en el
+  cliente como respaldo.
 - Navegación de compra (Inicio, Buscar, Tiendas, detalle de producto/
   tienda): combina el catálogo local de muestra con las tiendas/productos
   reales y **verificados** del backend, para que lo que subas aparezca en
@@ -307,11 +313,9 @@ muestra):**
 - Pedidos creados en checkout: no hay pasarela de pago real conectada, y el
   pedido en sí todavía se guarda en `localStorage` (no en el backend) —
   siguiente paso natural una vez el flujo de compra esté validado.
-- Fotos de producto: siguen siendo la ilustración por categoría generada
-  en el cliente — no hay proveedor de almacenamiento de imágenes conectado
-  todavía. El diseño completo (subida individual y por lotes) ya está
-  documentado en `docs/BASE_DE_DATOS.md` §4.1, listo para cuando se
-  conecte.
+- Importación masiva de fotos (ZIP o URLs por columna en el Excel): la
+  subida de fotos una por una ya es real, pero cargar muchas de golpe sigue
+  siendo sólo diseño (`docs/BASE_DE_DATOS.md` §4.1), a propósito.
 - Aprobación de tiendas: el estado ya es real, pero aprobar/rechazar hoy es
   SQL/API directo (ver `server/README.md`) — todavía no hay un panel de
   administración con interfaz.

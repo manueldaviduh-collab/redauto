@@ -30,17 +30,21 @@ Hace:
   e importación de cientos/miles de productos con sus compatibilidades.
   Re-subir el mismo SKU actualiza el producto en vez de duplicarlo.
 - Edición de la información de la propia tienda (`PATCH /api/stores/mine`).
+- **Subida real de fotos de producto** (`/api/products/:id/images/*`):
+  hasta 8 fotos por producto, subidas a Cloudinary — agregar, borrar y
+  reordenar. Si el servidor no tiene Cloudinary configurado, estos
+  endpoints responden `503` en vez de romper el resto de la API.
 - Lectura pública de tiendas y productos — **solo de tiendas ya
   verificadas**: una tienda pendiente o rechazada nunca aparece en el
   catálogo público, aunque ya tenga productos cargados.
 
 Todavía no hace (ver `docs/ROADMAP.md` para el orden en que se agrega):
-carrito/pedidos reales, pagos, envíos, subida real de fotos (pendiente de
-conectar un proveedor de almacenamiento — ver `docs/ARQUITECTURA.md` §9),
-reseñas, notificaciones push, panel de administración con interfaz (la
-aprobación de tiendas hoy es por SQL o por API, ver abajo). El frontend
-sigue resolviendo carrito/pedidos en `localStorage`, documentado en el
-README raíz.
+carrito/pedidos reales, pagos, envíos, importación masiva de fotos (ZIP o
+URLs por Excel — diseño en `docs/BASE_DE_DATOS.md` §4.1, la subida
+individual ya sí es real), reseñas, notificaciones push, panel de
+administración con interfaz (la aprobación de tiendas hoy es por SQL o por
+API, ver abajo). El frontend sigue resolviendo carrito/pedidos en
+`localStorage`, documentado en el README raíz.
 
 ## Requisitos
 
@@ -96,6 +100,25 @@ En cualquier caso, después de desplegar:
   dominio real donde sirvas el frontend (no dejar `*` en producción).
 - Cambia `window.REDAUTO_API_URL` en el `index.html` del frontend a la URL
   pública del backend desplegado.
+
+## Conectar Cloudinary (subida real de fotos)
+
+Sin esto, la API funciona igual, pero subir/borrar/reordenar fotos de
+producto responde `503`. Para activarlo:
+
+1. Crea una cuenta gratis en [cloudinary.com](https://cloudinary.com/users/register_free).
+2. En su Dashboard, copia **Cloud Name**, **API Key** y **API Secret**
+   (botón "Go to API Keys").
+3. Ponlos como variables de entorno del servidor (en `.env` local, o en el
+   panel de tu proveedor en producción):
+   ```
+   CLOUDINARY_CLOUD_NAME=...
+   CLOUDINARY_API_KEY=...
+   CLOUDINARY_API_SECRET=...
+   ```
+4. Reinicia el servidor. No hace falta tocar el esquema para esto — sólo
+   asegúrate de tener la columna `product_images.public_id` (ver siguiente
+   sección si tu base es de antes de esta versión).
 
 ## Actualizar una base ya desplegada (esquema nuevo)
 
@@ -154,8 +177,9 @@ apunte a él:
    te lleva directo al **Panel de vendedor → Inventario**.
 4. Ahí puedes cargar tu inventario completo aunque la tienda siga
    pendiente — **Agregar producto** uno por uno (con su compatibilidad de
-   vehículos), o **Importar por Excel** para cargar muchos de una vez
-   (descarga la plantilla desde el mismo botón).
+   vehículos y hasta 8 fotos reales), o **Importar por Excel** para cargar
+   muchos de una vez (descarga la plantilla desde el mismo botón; las
+   fotos se cargan aparte, producto por producto).
 5. Apruébate la tienda (ver "Aprobar una tienda" arriba) — recién ahí se
    vuelve visible para compradores. El inventario ya cargado no hay que
    volver a tocarlo, aparece solo apenas se aprueba.
@@ -180,6 +204,10 @@ paso 5 sí es manual hoy, a propósito (ver "Qué hace" arriba).
 | GET | `/api/products/import/template` | — | Descarga la plantilla oficial de Excel (.xlsx) |
 | POST | `/api/products/import/preview` | Bearer (vendedor) | Sube un `.xlsx` (`multipart/form-data`, campo `file`) → valida sin escribir nada |
 | POST | `/api/products/import/commit` | Bearer (vendedor) | Sube el mismo archivo → importa (upsert por SKU) |
+| GET | `/api/products/:id/images` | Bearer (vendedor) | Fotos del producto (con id, para poder borrar/reordenar) |
+| POST | `/api/products/:id/images` | Bearer (vendedor) | Sube una foto (`multipart/form-data`, campo `file`) — máx. 8 por producto; `503` si Cloudinary no está configurado |
+| DELETE | `/api/products/:id/images/:imageId` | Bearer (vendedor) | Borra una foto (base + Cloudinary) |
+| PATCH | `/api/products/:id/images/:imageId` | Bearer (vendedor) | Reordena — body `{"direction":"up"\|"down"}` |
 | GET | `/api/stores` | — | Tiendas verificadas |
 | GET | `/api/stores/:id` | — | Una tienda + su catálogo resumido |
 | GET | `/api/stores/mine` | Bearer (vendedor) | Tu tienda, sin importar el estado de verificación |
@@ -191,9 +219,10 @@ paso 5 sí es manual hoy, a propósito (ver "Qué hace" arriba).
 Ya está: contraseñas con hash (nunca en texto plano), sesión firmada (JWT),
 cada escritura de producto verificada contra el dueño real de la tienda
 (nunca confía en un `storeId` que mande el cliente), **tiendas nuevas
-pendientes de verificación real** (ya no se auto-verifican), y la
-importación por Excel corre en memoria (nunca escribe el archivo subido a
-disco).
+pendientes de verificación real** (ya no se auto-verifican), y tanto la
+importación por Excel como la subida de fotos corren en memoria (nunca
+escriben el archivo subido a disco) — cada foto además se verifica contra
+el producto de la tienda dueña antes de subirla o borrarla.
 
 Falta antes de un uso con más volumen/sensibilidad (ver
 `docs/ARQUITECTURA.md` §8 y `docs/ROADMAP.md`): límite de intentos de

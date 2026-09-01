@@ -442,11 +442,21 @@ function openProductForm({ user, refresh, product }) {
           <button type="button" class="text-btn" id="btn-add-compat">${icon('plusCircle', { size: 14 })} Agregar otro vehículo</button>
         </div>
 
+        <div class="field">
+          <span class="field__label">Fotos (hasta 8)</span>
+          <div class="photo-grid" id="photo-grid"></div>
+          <input type="file" id="photo-input" accept="image/*" multiple hidden />
+          <button type="button" class="text-btn" id="btn-add-photo">${icon('plusCircle', { size: 14 })} Agregar fotos</button>
+          <p class="field-hint">${isEdit ? 'Se suben apenas las agregas — no hace falta guardar el producto de nuevo.' : 'Se suben automáticamente al guardar el producto.'}</p>
+        </div>
+
         <button type="submit" class="btn btn--primary btn--block">${isEdit ? 'Guardar cambios' : 'Agregar producto'}</button>
       </form>
     `,
     onMount: (body) => {
       bindCompatRows(body);
+      const photoField = bindPhotoField(body, { isEdit, product });
+
       body.querySelector('#product-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const data = new FormData(e.target);
@@ -471,11 +481,25 @@ function openProductForm({ user, refresh, product }) {
         const submitBtn = body.querySelector('#product-form button[type="submit"]');
         submitBtn.disabled = true;
         try {
-          if (isEdit) {
-            await sellerService.updateProduct(product.id, payload);
-          } else {
-            await sellerService.addProduct(user.storeId, payload);
+          const savedProduct = isEdit
+            ? await sellerService.updateProduct(product.id, payload)
+            : await sellerService.addProduct(user.storeId, payload);
+
+          const pending = photoField.getPending();
+          if (pending.length) {
+            let failCount = 0;
+            for (const p of pending) {
+              try {
+                await sellerService.uploadProductImage(savedProduct.id, p.file);
+              } catch {
+                failCount += 1;
+              }
+            }
+            if (failCount) {
+              showToast(`${failCount} foto(s) no se pudieron subir. Puedes reintentar editando el producto.`, 'error');
+            }
           }
+
           closeModal();
           showToast(isEdit ? 'Producto actualizado' : 'Producto agregado', 'success');
           refresh();
@@ -486,6 +510,102 @@ function openProductForm({ user, refresh, product }) {
       });
     },
   });
+}
+
+const MAX_PRODUCT_IMAGES = 8;
+
+// Fotos: para un producto nuevo (sin id todavía) sólo hay preview local —
+// se suben recién al guardar (ver el submit handler de arriba). Para un
+// producto existente, cada acción pega directo contra la API y no espera al
+// submit del formulario (borrar/reordenar es inmediato).
+function bindPhotoField(body, { isEdit, product }) {
+  let existingImages = [];
+  const pendingPhotos = [];
+  let photoSeq = 0;
+  const grid = body.querySelector('#photo-grid');
+  const input = body.querySelector('#photo-input');
+
+  const totalCount = () => existingImages.length + pendingPhotos.length;
+
+  function render() {
+    const existingHtml = existingImages.map((img, idx) => `
+      <div class="photo-thumb" data-existing-id="${img.id}">
+        <img src="${escapeHtml(img.url)}" alt="Foto de producto" />
+        <div class="photo-thumb__actions">
+          <button type="button" data-photo-move="up" ${idx === 0 ? 'disabled' : ''} aria-label="Mover antes">${icon('chevronLeft', { size: 14 })}</button>
+          <button type="button" data-photo-move="down" ${idx === existingImages.length - 1 ? 'disabled' : ''} aria-label="Mover después">${icon('chevronRight', { size: 14 })}</button>
+          <button type="button" data-photo-delete aria-label="Eliminar foto">${icon('trash', { size: 14 })}</button>
+        </div>
+      </div>`).join('');
+    const pendingHtml = pendingPhotos.map((p) => `
+      <div class="photo-thumb photo-thumb--pending" data-pending-id="${p.tempId}">
+        <img src="${p.previewUrl}" alt="Foto pendiente de subir" />
+        <span class="photo-thumb__badge">Pendiente</span>
+        <button type="button" data-photo-remove-pending aria-label="Quitar foto">${icon('x', { size: 14 })}</button>
+      </div>`).join('');
+    grid.innerHTML = (existingHtml + pendingHtml) || '<p class="field-hint">Todavía no hay fotos.</p>';
+  }
+
+  grid.addEventListener('click', async (e) => {
+    const removeBtn = e.target.closest('[data-photo-remove-pending]');
+    if (removeBtn) {
+      const tempId = removeBtn.closest('[data-pending-id]').dataset.pendingId;
+      const idx = pendingPhotos.findIndex((p) => p.tempId === tempId);
+      if (idx !== -1) {
+        URL.revokeObjectURL(pendingPhotos[idx].previewUrl);
+        pendingPhotos.splice(idx, 1);
+      }
+      render();
+      return;
+    }
+    if (!isEdit) return; // borrar/reordenar de la API sólo aplica a un producto ya guardado
+    const deleteBtn = e.target.closest('[data-photo-delete]');
+    if (deleteBtn) {
+      const imgId = deleteBtn.closest('[data-existing-id]').dataset.existingId;
+      deleteBtn.disabled = true;
+      try {
+        existingImages = await sellerService.deleteProductImage(product.id, imgId);
+      } catch (err) {
+        showToast(err?.message || 'No se pudo borrar la foto.', 'error');
+      }
+      render();
+      return;
+    }
+    const moveBtn = e.target.closest('[data-photo-move]');
+    if (moveBtn) {
+      const imgId = moveBtn.closest('[data-existing-id]').dataset.existingId;
+      try {
+        existingImages = await sellerService.reorderProductImage(product.id, imgId, moveBtn.dataset.photoMove);
+      } catch (err) {
+        showToast(err?.message || 'No se pudo reordenar.', 'error');
+      }
+      render();
+    }
+  });
+
+  body.querySelector('#btn-add-photo').addEventListener('click', () => input.click());
+  input.addEventListener('change', () => {
+    const files = [...input.files];
+    input.value = '';
+    for (const file of files) {
+      if (totalCount() >= MAX_PRODUCT_IMAGES) {
+        showToast(`Máximo ${MAX_PRODUCT_IMAGES} fotos por producto.`, 'info');
+        break;
+      }
+      pendingPhotos.push({ tempId: `pending-${++photoSeq}`, file, previewUrl: URL.createObjectURL(file) });
+    }
+    render();
+  });
+
+  if (isEdit) {
+    sellerService.getProductImages(product.id)
+      .then((images) => { existingImages = images; render(); })
+      .catch(() => render());
+  } else {
+    render();
+  }
+
+  return { getPending: () => pendingPhotos };
 }
 
 function bindBack(container) {

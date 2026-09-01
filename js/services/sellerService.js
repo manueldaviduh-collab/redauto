@@ -47,4 +47,30 @@ export const sellerService = {
   async updateStore(patch) {
     return api.patch('/stores/mine', patch, { auth: true });
   },
+
+  // Fotos reales de producto (Cloudinary detrás de la API — ver
+  // server/src/services/imageStorage.js). Las cuatro llamadas devuelven
+  // siempre la galería completa actualizada, así el llamador nunca tiene
+  // que recalcular posiciones a mano.
+  async getProductImages(productId) {
+    const { images } = await api.get(`/products/${productId}/images`, { auth: true });
+    return images;
+  },
+
+  async uploadProductImage(productId, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { images } = await api.upload(`/products/${productId}/images`, formData, { auth: true });
+    return images;
+  },
+
+  async deleteProductImage(productId, imageId) {
+    const { images } = await api.del(`/products/${productId}/images/${imageId}`, { auth: true });
+    return images;
+  },
+
+  async reorderProductImage(productId, imageId, direction) {
+    const { images } = await api.patch(`/products/${productId}/images/${imageId}`, { direction }, { auth: true });
+    return images;
+  },
 };

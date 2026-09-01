@@ -528,6 +528,8 @@ img, svg { display: block; max-width: 100%; }
   z-index: 0;
 }
 .product-art__svg { position: relative; z-index: 1; width: 66%; height: 66%; }
+.product-tile--photo::before { content: none; }
+.product-tile--photo img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; }
 .product-row__media .product-art__svg,
 .cart-row__media .product-art__svg { width: 76%; height: 76%; }
 .product-detail__media .product-art__svg { width: 52%; height: 52%; }
@@ -885,6 +887,35 @@ img, svg { display: block; max-width: 100%; }
 .compat-row__fields { flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .compat-row__fields .field { gap: 4px; }
 .compat-row__fields .field__label { font-size: 11px; }
+
+/* ---------- Fotos de producto (panel de vendedor) ---------- */
+.photo-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.photo-thumb {
+  position: relative; width: 72px; height: 72px; border-radius: var(--radius-sm);
+  overflow: hidden; background: var(--color-surface-2); border: 1px solid var(--color-border);
+}
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-thumb--pending { opacity: 0.75; }
+.photo-thumb__badge {
+  position: absolute; left: 3px; bottom: 3px; font-size: 9px; font-weight: 700;
+  background: rgba(0,0,0,0.6); color: #fff; padding: 1px 5px; border-radius: 4px;
+}
+.photo-thumb__actions {
+  position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: flex-end;
+  gap: 2px; padding: 3px; opacity: 0; background: linear-gradient(180deg, rgba(0,0,0,0.35), transparent 40%);
+  transition: opacity var(--transition-fast, 0.15s);
+}
+.photo-thumb:hover .photo-thumb__actions, .photo-thumb:focus-within .photo-thumb__actions { opacity: 1; }
+.photo-thumb__actions button {
+  width: 20px; height: 20px; border-radius: 5px; border: none; background: rgba(0,0,0,0.55);
+  color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.photo-thumb__actions button:disabled { opacity: 0.35; cursor: default; }
+.photo-thumb > [data-photo-remove-pending] {
+  position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 5px;
+  border: none; background: rgba(0,0,0,0.55); color: #fff; display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
 
 /* ---------- Importación masiva por Excel (panel de vendedor) ---------- */
 .import-flow > * + * { margin-top: 12px; }

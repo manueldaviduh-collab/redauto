@@ -49,7 +49,7 @@ registro (ver §12).
 | Lógica | JavaScript ES2020+, módulos ES nativos del navegador (`import`/`export`) | Sin TypeScript ni bundler todavía — ver `DECISIONES.md`, ADR-001. El código ya está organizado en capas con contratos claros, que es la parte de "disciplina de tipos" que más importa a este tamaño |
 | Tipografía | Google Fonts (Poppins) | Única dependencia de red externa de la app; con fallback a fuentes del sistema si no hay conexión |
 | Iconografía | SVG propio (`js/ui/icons.js`) | Cero librerías de íconos externas |
-| Imágenes de producto | SVG generado en cliente (`js/ui/productArt.js`) | No hay fotografía real disponible — ver §9 y `DECISIONES.md`, ADR-005 |
+| Imágenes de producto | Foto real (Cloudinary) si la tienda subió alguna; si no, SVG generado en cliente (`js/ui/productArt.js`) como *fallback* | Ver §9 y `DECISIONES.md`, ADR-005 |
 
 **Herramientas de desarrollo (no forman parte del producto en sí):**
 
@@ -299,38 +299,42 @@ olvidarse de un `if` de autorización en el código de la API.
 
 ## 9. Almacenamiento de imágenes
 
-**Hoy:** no hay fotografía real de producto — no hay banco de imágenes
-con licencia ni generador de imágenes disponible en este proyecto. En su
-lugar, `js/ui/productArt.js` genera una ilustración SVG por categoría,
-inline, en el propio navegador. Cero almacenamiento necesario: no hay
-archivos de imagen que subir, guardar ni servir (el logo y el favicon en
-`assets/` son la única excepción, y son estáticos). El razonamiento
-completo y las alternativas consideradas están en
-[`DECISIONES.md`, ADR-005](./DECISIONES.md).
+**✅ Ya implementado — subida real de fotos de producto.** El panel de
+vendedor sube hasta 8 fotos por producto a **Cloudinary** (object storage
+administrado; ver `DECISIONES.md`, ADR-005 para el porqué de no montar
+storage propio). El flujo completo:
+- `server/src/services/imageStorage.js` envuelve el SDK de Cloudinary
+  (`cloudinary.uploader.upload_stream`/`destroy`). Si las credenciales no
+  están configuradas en el entorno, los endpoints de fotos responden `503`
+  en vez de fallar el arranque del servidor — el resto de la API sigue
+  funcionando normal.
+- `POST/DELETE/PATCH /api/products/:id/images(/:imageId)`
+  (`server/src/routes/products.js`) — multer en memoria (nunca a disco,
+  mismo patrón que la importación por Excel), sube el buffer a Cloudinary y
+  sólo si eso responde bien inserta la fila en `product_images` con la URL
+  real. `PATCH` reordena intercambiando posición con la foto vecina;
+  `DELETE` borra la fila y, si tiene `public_id`, también la imagen en
+  Cloudinary (best-effort).
+- El panel de vendedor (`js/screens/seller.js`, sección "Fotos" del
+  formulario de producto) permite previsualizar fotos localmente antes de
+  guardar (para un producto nuevo, se suben recién al guardar) y
+  agregar/borrar/reordenar en vivo para un producto ya existente.
+- `productTile()` (`js/ui/components.js`) muestra la primera foto real si
+  el producto tiene alguna; si no, sigue cayendo a la ilustración SVG de
+  `productArt.js` como *fallback* — nunca deja una ficha sin imagen.
 
-**Objetivo (cuando las tiendas suban fotos reales desde el panel de
-vendedor — ver `ROADMAP.md`, Etapa 1 en adelante):**
-- Object storage administrado (**Supabase Storage** si se usa Supabase
-  para el resto del backend, o S3/Cloudinary si no) — no servir imágenes
-  desde el propio servidor de la aplicación.
-- Tabla `product_images` **ya implementada** (una fila por imagen, con
-  `position` para el orden de la galería), vacía hasta que exista el
-  endpoint de subida — el panel de vendedor sube 1–5 fotos por producto,
-  no una foto obligatoria única. Diseño completo, incluida la importación
-  masiva de fotos (ZIP o URLs por columna en el Excel), ya escrito en
-  `BASE_DE_DATOS.md` §4.1 — falta conectar el proveedor de storage, no
-  diseñarlo.
-- Límite de tamaño razonable por imagen (ej. 5 MB) validado en el cliente
-  antes de subir, y conversión a un formato liviano (WebP) — puede hacerlo
-  el propio servicio de storage (Supabase/Cloudinary transforman al
-  vuelo) en vez de escribir un pipeline de procesamiento de imágenes
-  propio.
-- Un CDN con transformación de imágenes on-demand (miniaturas, distintos
-  tamaños por breakpoint) **no hace falta desde el día uno** — ver §14,
-  se agrega cuando el catálogo de fotos reales sea grande, no antes.
-- Las ilustraciones vectoriales de `productArt.js` no desaparecen: quedan
-  como *fallback* para productos sin foto todavía, en vez de ser el
-  tratamiento por defecto.
+**Todavía no implementado:**
+- Importación masiva de fotos (ZIP con nombre de archivo = SKU, o columnas
+  `foto_url_1`/`foto_url_2` en el Excel) — diseño completo en
+  `BASE_DE_DATOS.md` §4.1, deliberadamente no construido todavía (pedido
+  explícito: "sólo preparar la estructura").
+- Conversión/transformación de imágenes (redimensionar, WebP) — Cloudinary
+  ya lo puede hacer al vuelo vía parámetros en la URL cuando haga falta, no
+  se ha necesitado optimizar todavía con el volumen actual.
+- Herramientas con IA (mejorar imagen, quitar fondo, normalizar
+  iluminación) mencionadas como posible mejora futura — explícitamente
+  fuera de alcance por ahora, sólo la arquitectura de subida está lista
+  para que se puedan conectar después sin rediseñar el flujo.
 
 ## 10. Comunicación frontend ↔ backend
 

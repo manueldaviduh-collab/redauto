@@ -1,9 +1,20 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { pool } from '../db.js';
 import { requireAuth, requireSeller } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { isImageStorageConfigured, uploadImageBuffer, deleteImage } from '../services/imageStorage.js';
 
 export const productsRouter = Router();
+
+const MAX_PRODUCT_IMAGES = 8;
+
+// En memoria, nunca a disco (mismo criterio que la importación por Excel) —
+// el filesystem del contenedor no es persistente entre despliegues.
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+});
 
 const toCents = (value) => Math.round(Number(value) * 100);
 const toDollars = (cents) => (cents == null ? null : Number(cents) / 100);
@@ -69,6 +80,24 @@ async function withExtras(row) {
 async function getOwnStoreId(userId) {
   const result = await pool.query('SELECT id FROM stores WHERE owner_user_id = $1', [userId]);
   return result.rows[0]?.id || null;
+}
+
+// Resuelve un producto sólo si es dueño de él el vendedor autenticado —
+// mismo patrón que el resto de las rutas de escritura: nunca confiar en el
+// :id de la URL sin cruzarlo contra la tienda del token.
+async function getOwnProduct(userId, productId) {
+  const storeId = await getOwnStoreId(userId);
+  if (!storeId) return null;
+  const result = await pool.query('SELECT id FROM products WHERE id = $1 AND store_id = $2', [productId, storeId]);
+  return result.rows[0] ? { id: productId, storeId } : null;
+}
+
+async function listProductImages(productId) {
+  const result = await pool.query(
+    'SELECT id, url, position FROM product_images WHERE product_id = $1 ORDER BY position',
+    [productId]
+  );
+  return result.rows;
 }
 
 function validateCompatibilityInput(list) {
@@ -256,4 +285,92 @@ productsRouter.patch('/:id', requireAuth, requireSeller, asyncHandler(async (req
   } finally {
     client.release();
   }
+}));
+
+// GET /api/products/:id/images — galería con id (no sólo la URL) para que
+// el panel de vendedor pueda borrar/reordenar. La ficha pública sigue
+// usando toProductViewModel().images (array de URLs), sin tocar esa forma.
+productsRouter.get('/:id/images', requireAuth, requireSeller, asyncHandler(async (req, res) => {
+  const owned = await getOwnProduct(req.auth.id, req.params.id);
+  if (!owned) return res.status(404).json({ error: 'Producto no encontrado en tu tienda.' });
+  res.json({ images: await listProductImages(req.params.id) });
+}));
+
+// POST /api/products/:id/images — sube una foto real a Cloudinary y la
+// asocia al producto. multipart/form-data, campo "file" (mismo patrón que
+// la importación por Excel: multer en memoria, nunca a disco).
+productsRouter.post('/:id/images', requireAuth, requireSeller, imageUpload.single('file'), asyncHandler(async (req, res) => {
+  if (!isImageStorageConfigured()) {
+    return res.status(503).json({ error: 'La subida de fotos todavía no está configurada en el servidor.' });
+  }
+  const owned = await getOwnProduct(req.auth.id, req.params.id);
+  if (!owned) return res.status(404).json({ error: 'Producto no encontrado en tu tienda.' });
+  if (!req.file) return res.status(400).json({ error: 'Selecciona una imagen.' });
+  if (!req.file.mimetype.startsWith('image/')) return res.status(400).json({ error: 'El archivo debe ser una imagen.' });
+
+  const existing = await listProductImages(req.params.id);
+  if (existing.length >= MAX_PRODUCT_IMAGES) {
+    return res.status(400).json({ error: `Máximo ${MAX_PRODUCT_IMAGES} fotos por producto.` });
+  }
+
+  const uploaded = await uploadImageBuffer(req.file.buffer, { folder: `redauto/products/${req.params.id}` });
+  // MAX(position)+1, no COUNT: si se borró una foto de en medio antes, el
+  // conteo y la posición máxima real ya no coinciden — usar el conteo acá
+  // podría reasignar una posición que otra foto ya tiene.
+  await pool.query(
+    `INSERT INTO product_images (product_id, url, public_id, position)
+     VALUES ($1, $2, $3, COALESCE((SELECT MAX(position) + 1 FROM product_images WHERE product_id = $1), 0))`,
+    [req.params.id, uploaded.url, uploaded.publicId]
+  );
+  res.status(201).json({ images: await listProductImages(req.params.id) });
+}));
+
+// DELETE /api/products/:id/images/:imageId — borra la fila y, si tiene
+// public_id, también la imagen en Cloudinary (best-effort: si Cloudinary
+// falla, igual queda borrada de la base, nunca al revés).
+productsRouter.delete('/:id/images/:imageId', requireAuth, requireSeller, asyncHandler(async (req, res) => {
+  const owned = await getOwnProduct(req.auth.id, req.params.id);
+  if (!owned) return res.status(404).json({ error: 'Producto no encontrado en tu tienda.' });
+  const found = await pool.query(
+    'SELECT public_id FROM product_images WHERE id = $1 AND product_id = $2',
+    [req.params.imageId, req.params.id]
+  );
+  if (!found.rowCount) return res.status(404).json({ error: 'Foto no encontrada.' });
+  await pool.query('DELETE FROM product_images WHERE id = $1', [req.params.imageId]);
+  if (found.rows[0].public_id) {
+    deleteImage(found.rows[0].public_id).catch((err) => console.error('No se pudo borrar en Cloudinary:', err));
+  }
+  res.json({ images: await listProductImages(req.params.id) });
+}));
+
+// PATCH /api/products/:id/images/:imageId — reordena intercambiando la
+// posición con la foto vecina ({ direction: 'up' | 'down' }). Alcanza para
+// hasta 8 fotos (el máximo) sin necesitar drag-and-drop.
+productsRouter.patch('/:id/images/:imageId', requireAuth, requireSeller, asyncHandler(async (req, res) => {
+  const owned = await getOwnProduct(req.auth.id, req.params.id);
+  if (!owned) return res.status(404).json({ error: 'Producto no encontrado en tu tienda.' });
+  const direction = req.body?.direction;
+  if (direction !== 'up' && direction !== 'down') return res.status(400).json({ error: 'Dirección inválida.' });
+
+  const images = await listProductImages(req.params.id);
+  const idx = images.findIndex((img) => img.id === req.params.imageId);
+  if (idx === -1) return res.status(404).json({ error: 'Foto no encontrada.' });
+  const swapWith = direction === 'up' ? idx - 1 : idx + 1;
+  if (swapWith < 0 || swapWith >= images.length) return res.json({ images });
+
+  const a = images[idx];
+  const b = images[swapWith];
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE product_images SET position = $1 WHERE id = $2', [b.position, a.id]);
+    await client.query('UPDATE product_images SET position = $1 WHERE id = $2', [a.position, b.id]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  res.json({ images: await listProductImages(req.params.id) });
 }));

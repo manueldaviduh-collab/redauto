@@ -101,11 +101,15 @@ function discountPercent(product) {
   return Math.round(100 - (product.price / product.originalPrice) * 100);
 }
 
-// Marcador visual del producto: no hay fotografías reales en el MVP, así que
-// se usa un tile con el ícono de categoría sobre un degradado — mantiene
-// densidad visual sin depender de assets externos.
+// Si la tienda ya subió fotos reales (product.images, ver
+// server/src/routes/products.js) se muestra la primera. Si no, se usa el
+// tile ilustrado con el ícono de categoría sobre un degradado — nunca deja
+// la ficha vacía mientras una tienda no tenga fotos cargadas todavía.
 export function productTile(product) {
   const category = getCategoryById(product.categoryId);
+  if (product.images?.length) {
+    return `<div class="product-tile product-tile--photo" role="img" aria-label="${escapeHtml(category?.name || 'Repuesto')}"><img src="${escapeHtml(product.images[0])}" alt="" loading="lazy" /></div>`;
+  }
   return `<div class="product-tile" role="img" aria-label="${escapeHtml(category?.name || 'Repuesto')}">${productArt(product.categoryId)}</div>`;
 }
 
