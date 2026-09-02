@@ -134,18 +134,17 @@ js/
   nav.js               navigate()/parseHash() — sin dependencias circulares
                        con router.js (por eso vive separado)
 
-  data/                Catálogos y semillas (arrays estáticos en memoria)
-    categories.js, vehicles.js, stores.js, products.js, users.js,
-    notifications.js, reviews.js
+  data/                Catálogos y semillas (arrays estáticos en memoria) —
+                       sólo lo que sigue simulado, ver §10
+    categories.js, vehicles.js, notifications.js, reviews.js
 
   services/            Toda la lógica de negocio; contratos `async`
     storage.js          Envoltorio sobre localStorage (namespace "redauto_"
                          + try/catch — nunca se llama a localStorage directo
                          desde otro archivo)
     productService.js   Búsqueda/filtros, compatibilidad de vehículo, estado
-                         de inventario (3 niveles), catálogo base + overrides
-                         del vendedor
-    storeService.js      Listado/detalle de tiendas verificadas
+                         de inventario (3 niveles) — sólo backend real
+    storeService.js      Listado/detalle de tiendas verificadas — sólo backend real
     categoryService.js
     vehicleService.js    Garage de "Mis Vehículos" (CRUD) + vehículo activo
     cartService.js        Carrito + evento global CART_CHANGED_EVENT
@@ -363,14 +362,17 @@ contrato `async`, sin backend real detrás todavía (ver §7).
 | Configuración de URL | `window.REDAUTO_API_URL` en `index.html` — un solo valor a cambiar al desplegar, no hace falta tocar ni reconstruir el resto de la app |
 | Paginación | No existe todavía (catálogos chicos). Al crecer, `GET /api/products?page=2&pageSize=20` — no es un problema real a la escala del piloto |
 
-**Cómo se mantiene la app usable sin backend desplegado en algún lado:**
-la navegación de compra (`productService`/`storeService`) intenta el
-backend y, si no responde, degrada en silencio al catálogo local de
-`js/data/*.js` — para que Home/Buscar/Tiendas nunca se rompan del todo. El
-panel de vendedor (`sellerService`) hace lo opuesto a propósito: **no**
-esconde un fallo de conexión, porque un vendedor necesita saber si su
-inventario está vacío o si el servidor simplemente no respondió (ver
-`docs/PRINCIPIOS.md`, Transparencia).
+**Cómo se comporta la app cuando el backend no responde:** la navegación
+de compra (`productService`/`storeService`) intenta el backend y, si
+falla, degrada a "sin resultados" — nunca a un catálogo local ficticio
+(ver `docs/DECISIONES.md`). Eso mezcló brevemente un catálogo de muestra
+de `js/data/*.js` mientras RedAuto no tenía tiendas reales todavía; se
+quitó apenas hubo negocios de verdad, para no arriesgarse nunca a
+mostrarle a un usuario real un negocio que no existe. El panel de vendedor
+(`sellerService`) sigue el mismo principio de no esconder un fallo de
+conexión: un vendedor necesita saber si su inventario está vacío o si el
+servidor simplemente no respondió (ver `docs/PRINCIPIOS.md`,
+Transparencia).
 
 ## 11. Qué se rompe primero si esto crece sin cambiar nada
 
@@ -397,27 +399,25 @@ su firma — y las pantallas que los llaman no se tocaron. Ejemplo real,
 
 ```js
 async search(filters = {}) {
-  await delay();
-  const base = applyFilters(getAllMerged(), filters);       // catálogo local (js/data/products.js)
   const remote = await fetchBackendProducts(filters);        // fetch a /api/products — [] si falla
-  return [...base, ...remote];                               // namespaces de id disjuntos (p1.. vs uuid)
+  return applyFilters(remote, filters);
 }
 ```
 
 `search.js`/`home.js` no cambiaron una línea: siguen llamando
 `productService.search(filters)` y recibiendo un array de productos, sin
-saber que ahora una parte viene de Postgres. `authService`,
-`storeService` y `sellerService` se migraron con el mismo patrón —
-`authService` fue el único que dejó de tener un "modo local" en paralelo,
-porque no tiene sentido simular login/registro cuando ya hay backend real
-para eso.
+saber que ahora viene de Postgres. `authService`, `storeService` y
+`sellerService` se migraron con el mismo patrón — cada uno dejó de tener
+un "modo local" en paralelo una vez que ya no hacía falta.
 
-**Por qué el catálogo se sirve *mezclado* (local + backend) en vez de
-sólo backend:** para que Home/Buscar/Tiendas nunca se vean vacíos por un
-fallo de red — ver §10 y `docs/PRINCIPIOS.md`. Las tiendas/productos de
-`js/data/*.js` siguen existiendo únicamente para eso, **no son datos
-reales de ninguna tienda** — el panel de vendedor y el registro de cuenta
-sólo escriben contra el backend real, nunca contra ese catálogo local.
+**Por qué el catálogo ya NO se sirve mezclado con datos locales:**
+`productService`/`storeService` mezclaron brevemente un catálogo de
+muestra (`js/data/products.js`/`stores.js`, hoy eliminados) con el
+backend, para que Home/Buscar/Tiendas nunca se vieran vacíos mientras
+RedAuto no tenía tiendas reales. Se quitó ese catálogo apenas hubo
+negocios reales registrados — ver `docs/DECISIONES.md` para el porqué. Un
+fallo de red hoy se ve como "sin resultados", nunca como un negocio
+inventado.
 
 ## 13. Plan de migración (resumen — parte 1 ya hecha)
 

@@ -1,13 +1,8 @@
-import { stores, getStoreById } from '../data/stores.js';
 import { api } from './api.js';
 
-// RedAuto sólo lista tiendas verificadas. El catálogo local
-// (js/data/stores.js) sigue como muestra visual del diseño; las tiendas
-// reales creadas vía registro (ver server/) se combinan con ese catálogo
-// para que una tienda real, apenas se registra, aparezca en la misma
-// navegación que ya existe — sin cambiar ninguna pantalla. Si el backend no
-// está encendido/alcanzable, se degrada de forma silenciosa al catálogo
-// local (lectura pública, no bloqueante).
+// Sólo tiendas reales y verificadas — sin catálogo de muestra mezclado (ver
+// docs/DECISIONES.md). Si el backend no responde, la navegación se degrada
+// a "sin resultados" en vez de mostrar negocios que no existen.
 async function fetchBackendStores() {
   try {
     return await api.get('/stores');
@@ -19,11 +14,9 @@ async function fetchBackendStores() {
 export const storeService = {
   async getAll() {
     const remote = await fetchBackendStores();
-    return [...stores, ...remote].sort((a, b) => b.rating - a.rating);
+    return remote.sort((a, b) => b.rating - a.rating);
   },
   async getById(id) {
-    const local = getStoreById(id);
-    if (local) return local;
     try {
       // auth:true manda el token si hay uno logueado (no pasa nada si no lo
       // hay) — permite que un admin pueda previsualizar una tienda pendiente
@@ -36,9 +29,8 @@ export const storeService = {
   async search(query) {
     const q = (query || '').trim().toLowerCase();
     const remote = await fetchBackendStores();
-    const all = [...stores, ...remote];
-    if (!q) return all;
-    return all.filter(
+    if (!q) return remote;
+    return remote.filter(
       (s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q)
     );
   },

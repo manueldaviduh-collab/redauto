@@ -1,13 +1,4 @@
-import { products as baseProducts, getProductById as getBaseProductById } from '../data/products.js';
 import { api } from './api.js';
-
-// Simula la latencia de un catálogo local para que la UI pueda mostrar
-// estados de carga honestos en vez de renderizar todo de forma instantánea.
-const NETWORK_DELAY_MS = 260;
-
-function delay(ms = NETWORK_DELAY_MS) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function matchesVehicle(product, vehicle) {
   if (!vehicle || !vehicle.brand) return true;
@@ -48,11 +39,10 @@ function applyFilters(list, filters) {
   });
 }
 
-// El catálogo local (js/data/products.js) sigue como muestra visual del
-// diseño; el backend real (server/) es la fuente de las tiendas y
-// productos que se registran de verdad — ver docs/ROADMAP.md. Si el
-// backend no está encendido o no es alcanzable, la navegación de compra no
-// se rompe: simplemente no aparece nada real todavía (degradación
+// Sin catálogo de muestra mezclado (ver docs/DECISIONES.md) — sólo
+// productos reales de tiendas verificadas. Si el backend no está encendido
+// o no es alcanzable, la navegación de compra se degrada a "sin
+// resultados" en vez de mostrar productos que no existen (degradación
 // silenciosa aceptable acá porque es sólo lectura pública; no así en el
 // panel de vendedor, donde un fallo real sí se muestra — ver
 // sellerService.js).
@@ -75,24 +65,18 @@ export const productService = {
   // Filtros soportados: { query, brand, model, year, categoryId,
   // availability, type, minPrice, maxPrice }
   async search(filters = {}) {
-    const [local, remote] = await Promise.all([
-      delay().then(() => baseProducts),
-      fetchBackendProducts({
-        categoryId: filters.categoryId, availability: filters.availability, type: filters.type, query: filters.query,
-      }),
-    ]);
-    return applyFilters([...local, ...remote], filters);
+    const remote = await fetchBackendProducts({
+      categoryId: filters.categoryId, availability: filters.availability, type: filters.type, query: filters.query,
+    });
+    return applyFilters(remote, filters);
   },
 
   async getFeatured(limit = 6) {
-    const [local, remote] = await Promise.all([delay().then(() => baseProducts), fetchBackendProducts()]);
-    return [...local, ...remote].sort((a, b) => b.rating - a.rating).slice(0, limit);
+    const remote = await fetchBackendProducts();
+    return remote.sort((a, b) => b.rating - a.rating).slice(0, limit);
   },
 
   async getById(id) {
-    await delay(160);
-    const local = getBaseProductById(id);
-    if (local) return local;
     try {
       return await api.get(`/products/${id}`);
     } catch {
@@ -101,9 +85,6 @@ export const productService = {
   },
 
   async getByStore(storeId) {
-    await delay(200);
-    const local = baseProducts.filter((p) => p.storeId === storeId);
-    if (local.length) return local;
     return fetchBackendProducts({ storeId });
   },
 

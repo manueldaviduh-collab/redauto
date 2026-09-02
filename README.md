@@ -181,16 +181,15 @@ js/
   config.js            URL del backend (window.REDAUTO_API_URL, ver index.html)
   router.js           Router hash-based, mapea rutas -> pantallas, transición de entrada
   nav.js               navigate()/parseHash(), sin dependencias circulares
-  data/                Catálogo local de muestra (una fuente de verdad por dominio, no
-                       remplaza al backend — ver services/*.js para qué ya es real)
-    categories.js, vehicles.js, stores.js, products.js, users.js,
-    notifications.js, reviews.js, venezuelaStates.js
+  data/                Catálogo local fijo (categorías, vehículos, notificaciones/reseñas
+                       de muestra) — ver services/*.js para qué ya es real
+    categories.js, vehicles.js, notifications.js, reviews.js, venezuelaStates.js
   services/            Capa de negocio — el único punto de acceso a los datos
     storage.js          Envoltorio sobre localStorage (namespacing + try/catch)
     api.js                Cliente HTTP hacia el backend real (fetch + JWT + errores)
     productService.js   Búsqueda/filtros, compatibilidad, estado de inventario;
-                         combina el catálogo local de muestra con el backend real
-    storeService.js      Tiendas verificadas; combina local + backend real
+                         sólo productos reales del backend, sin catálogo de muestra
+    storeService.js      Tiendas verificadas reales del backend, sin catálogo de muestra
     categoryService.js
     vehicleService.js    "Mis Vehículos": garage (CRUD) + vehículo activo (localStorage)
     cartService.js        Carrito (localStorage) + evento global de cambio
@@ -312,10 +311,12 @@ muestra):**
   todavía sigue mostrando la ilustración por categoría generada en el
   cliente como respaldo.
 - Navegación de compra (Inicio, Buscar, Tiendas, detalle de producto/
-  tienda): combina el catálogo local de muestra con las tiendas/productos
-  reales y **verificados** del backend, para que lo que subas aparezca en
-  la misma navegación sin ninguna pantalla nueva, apenas se apruebe tu
-  tienda.
+  tienda): muestra sólo tiendas/productos reales y **verificados** del
+  backend — sin catálogo de muestra mezclado (ver `docs/DECISIONES.md`).
+  Si no hay resultados reales todavía, la app lo dice honestamente ("sin
+  resultados") en vez de mostrar un negocio que no existe. Lo que subas
+  aparece en esta misma navegación sin ninguna pantalla nueva, apenas se
+  apruebe tu tienda.
 - **Pedidos reales**: al confirmar la compra en el checkout, se crea un
   pedido de verdad en la base de datos — precio y nombre de cada línea
   resueltos y congelados del lado del servidor (nunca del cliente), visible

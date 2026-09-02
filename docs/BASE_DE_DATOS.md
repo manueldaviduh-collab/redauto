@@ -24,14 +24,13 @@ verificó al implementar la primera porción.
 | Notificaciones | `localStorage` + datos de muestra | Simulado |
 | Reseñas | Generadas en memoria (muestra) | Simulado |
 
-La navegación de compra (Home/Buscar/Tiendas) combina el catálogo real de
-Postgres con un catálogo de demostración que sigue viviendo en
-`js/data/products.js`/`stores.js`, **sólo** para que esas pantallas nunca
-se vean vacías si el backend no responde (ver `ARQUITECTURA.md` §10). Los
-namespaces de id no chocan a propósito: lo de muestra usa `p1`..`p24` /
-`st1`..`st5`, lo real del backend usa UUIDs. El panel de vendedor y el
-registro de cuenta **sólo** escriben contra el backend real — nunca contra
-ese catálogo de muestra.
+La navegación de compra (Home/Buscar/Tiendas) muestra **sólo** tiendas y
+productos reales de Postgres, verificados y sin catálogo de demostración
+mezclado (ver `DECISIONES.md`, y `ARQUITECTURA.md` §10 para el historial:
+esas pantallas mezclaron un catálogo de muestra hasta que RedAuto tuvo
+tiendas reales, y se quitó a propósito para no mostrarle nunca a un
+usuario real un negocio que no existe). Si el backend no responde, la
+navegación se degrada a "sin resultados", no a datos ficticios.
 
 ## 2. Esquema implementado hoy (PostgreSQL, `server/src/schema.sql`)
 

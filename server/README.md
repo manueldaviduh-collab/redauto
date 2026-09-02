@@ -196,11 +196,11 @@ reales). Ahora:
   del lado del servidor (nunca de lo que mande el cliente) y los congela
   (`product_name_snapshot`/`unit_price_cents`) — si la tienda después
   cambia el precio o borra el producto, el pedido ya hecho no cambia.
-- Sólo acepta productos reales de tiendas ya verificadas. El catálogo de
-  muestra (`js/data/products.js`, todavía usado para que la navegación de
-  compra nunca se vea vacía) no existe en esta base — si el carrito trae
-  alguno de esos, esa línea se descarta y la respuesta lo avisa
-  (`skippedCount`) en vez de fingir que se compró.
+- Sólo acepta productos reales de tiendas ya verificadas. La app ya no
+  tiene ningún catálogo de muestra (ver `docs/DECISIONES.md`, ADR-008),
+  pero por si el carrito trae un id que no exista de verdad en esta base
+  (formato inválido o producto borrado), esa línea se descarta y la
+  respuesta lo avisa (`skippedCount`) en vez de fingir que se compró.
 - Estados honestos solamente: `pendiente_pago` (recién creado) →
   `pagado` (la tienda confirma que cobró, coordinado aparte por WhatsApp/
   transferencia) o `cancelado`. Nunca "en camino"/"entregado" — eso

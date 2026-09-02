@@ -12,7 +12,7 @@
 // primera visita después de cada despliegue, hasta la siguiente recarga.
 // Cambiar CACHE_VERSION fuerza además una limpieza completa de caché
 // (usarlo si algún día hace falta invalidar todo de una vez).
-const CACHE_VERSION = 'redauto-shell-v2';
+const CACHE_VERSION = 'redauto-shell-v3';
 
 const PRECACHE_URLS = [
   '/',
@@ -25,10 +25,7 @@ const PRECACHE_URLS = [
   '/js/router.js',
   '/js/data/categories.js',
   '/js/data/notifications.js',
-  '/js/data/products.js',
   '/js/data/reviews.js',
-  '/js/data/stores.js',
-  '/js/data/users.js',
   '/js/data/vehicles.js',
   '/js/screens/cart.js',
   '/js/screens/checkout.js',

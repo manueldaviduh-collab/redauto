@@ -233,3 +233,56 @@ aplicación.
 genuinamente no relacional a gran escala (ej. un feed de actividad de muy
 alto volumen) — ahí puede convenir una base secundaria especializada al
 lado de Postgres, no en su lugar.
+
+---
+
+## ADR-008 — Se quita el catálogo de muestra de la navegación de compra
+
+**Contexto:** desde que existió `productService`/`storeService`, Home,
+Buscar y Tiendas mezclaban las tiendas/productos reales del backend con un
+catálogo de muestra fijo (`js/data/products.js`/`stores.js`, con ids
+`p1`..`p24`/`st1`..`st5`) — decisión original documentada en ADR anterior
+de `ARQUITECTURA.md` §10/§12, para que esas pantallas nunca se vieran
+vacías mientras RedAuto no tenía ninguna tienda real registrada. Al llegar
+las primeras tiendas reales, un comprador (y potencialmente el primer
+negocio real a subir, el del padre del fundador) seguía viendo esas
+tiendas ficticias mezcladas con las reales en la misma navegación, sin
+ninguna marca visual que las distinguiera.
+
+**Decisión:** eliminar por completo `js/data/products.js`, `stores.js` y
+`users.js` (este último ya sin ningún uso real) y toda la lógica de mezcla
+en `productService.js`/`storeService.js`. La navegación de compra ahora
+muestra **sólo** datos reales y verificados del backend; si el backend no
+responde o no hay resultados, se muestra el estado vacío honesto que cada
+pantalla ya tenía implementado (`emptyState()` en `search.js`,
+`stores.js`, `storeDetail.js`), no un negocio inventado.
+
+**Alternativas consideradas:**
+- *Dejarlo como estaba, sólo como respaldo de emergencia si el backend
+  cae.* Se descartó: la app ya depende del backend real para todo lo que
+  importa (login, checkout, panel de vendedor) — un catálogo de muestra
+  como "red de seguridad" sólo para dos pantallas de lectura no vale el
+  riesgo de mostrarle a un comprador real una tienda que no puede
+  contactar ni comprarle.
+- *Marcar visualmente las tiendas de muestra ("demo") en vez de
+  quitarlas.* Añade complejidad de UI (badges, filtros) para un catálogo
+  cuyo único propósito ya se cumplió (evitar pantallas vacías durante el
+  desarrollo/piloto inicial).
+
+**Consecuencias:**
+- Home/Buscar/Tiendas pueden mostrar honestamente "sin resultados" si
+  todavía no hay suficientes tiendas/productos reales en una ciudad o
+  categoría — coherente con `docs/PRINCIPIOS.md` §4 (Transparencia), a
+  costa de una navegación que puede sentirse más vacía al principio del
+  piloto.
+- `sw.js` deja de precachear los tres archivos eliminados (si no, el
+  `cache.addAll()` del install del service worker falla por completo al
+  referenciar un archivo que ya no existe).
+- Menos superficie de código: `productService.js`/`storeService.js`
+  pierden toda la lógica de "mezclar y no chocar namespaces de id".
+
+**Cuándo reconsiderar:** si en el futuro se necesita de nuevo contenido de
+demostración (por ejemplo, un modo "vista previa" para un vendedor nuevo
+antes de que su tienda esté verificada), debería vivir claramente marcado
+como tal en su propia pantalla — nunca mezclado sin distinción en la
+navegación real de compra.
