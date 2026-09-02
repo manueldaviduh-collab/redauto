@@ -310,6 +310,11 @@ muestra):**
   y borrar/reordenar sobre un producto ya existente. Un producto sin fotos
   todavía sigue mostrando la ilustración por categoría generada en el
   cliente como respaldo.
+- **Logo real de tienda**: se sube al registrarte (o después, desde
+  "Editar información de mi tienda" en el panel de vendedor) — misma
+  subida a Cloudinary que las fotos de producto. Se ve en las tarjetas de
+  tienda, en la ficha de producto y en el detalle de la tienda; sin logo
+  todavía, se siguen mostrando las iniciales sobre el degradado de marca.
 - Navegación de compra (Inicio, Buscar, Tiendas, detalle de producto/
   tienda): muestra sólo tiendas/productos reales y **verificados** del
   backend — sin catálogo de muestra mezclado (ver `docs/DECISIONES.md`).

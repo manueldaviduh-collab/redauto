@@ -34,6 +34,11 @@ Hace:
   hasta 8 fotos por producto, subidas a Cloudinary — agregar, borrar y
   reordenar. Si el servidor no tiene Cloudinary configurado, estos
   endpoints responden `503` en vez de romper el resto de la API.
+- **Logo real de tienda** (`/api/stores/mine/logo`): una foto subida a
+  Cloudinary igual que las de producto (mismo `imageStorage.js` detrás) —
+  reemplazarla borra la anterior en Cloudinary, y una tienda sin logo
+  todavía sigue mostrando sus iniciales sobre el degradado de marca en la
+  navegación, nunca un espacio roto.
 - Lectura pública de tiendas y productos — **solo de tiendas ya
   verificadas**: una tienda pendiente o rechazada nunca aparece en el
   catálogo público, aunque ya tenga productos cargados.
@@ -264,6 +269,8 @@ pero ya tiene una pantalla — no hace falta SQL para el día a día.
 | GET | `/api/stores/:id` | — (admin ve cualquiera) | Una tienda + su catálogo resumido; pública sólo si está verificada |
 | GET | `/api/stores/mine` | Bearer (vendedor) | Tu tienda, sin importar el estado de verificación |
 | PATCH | `/api/stores/mine` | Bearer (vendedor) | Editar los datos de tu tienda (nunca su verificación) |
+| POST | `/api/stores/mine/logo` | Bearer (vendedor) | Sube/reemplaza el logo de tu tienda (`multipart/form-data`, campo `file`) — `503` si Cloudinary no está configurado |
+| DELETE | `/api/stores/mine/logo` | Bearer (vendedor) | Quita el logo (vuelve a mostrar iniciales en la navegación) |
 | GET | `/api/stores/admin` | Bearer (admin) | Todas las tiendas, cualquier estado — `?status=pendiente\|verificada\|rechazada` filtra |
 | PATCH | `/api/stores/:id/verification` | Bearer (admin) | Aprobar/rechazar una tienda — ver "Panel de administración" arriba |
 | POST | `/api/orders` | Bearer | Crea un pedido real desde el carrito — `{items:[{productId,qty}], shipping:{name,phone,address,city}}` |

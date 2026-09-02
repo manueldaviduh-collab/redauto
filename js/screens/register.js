@@ -1,6 +1,7 @@
 import { icon } from '../ui/icons.js';
 import { backHeaderHtml, escapeHtml } from '../ui/components.js';
 import { authService } from '../services/authService.js';
+import { sellerService } from '../services/sellerService.js';
 import { navigate } from '../nav.js';
 import { showToast } from '../ui/toast.js';
 import { categories } from '../data/categories.js';
@@ -51,6 +52,18 @@ export async function render(container, { query }) {
             <span class="field__label">Nombre de tu tienda</span>
             <input type="text" name="storeName" minlength="2" placeholder="Ej. Repuestos Duarte C.A." />
           </label>
+          <div class="field">
+            <span class="field__label">Logo de tu tienda (opcional)</span>
+            <div class="logo-picker" id="logo-picker">
+              <div class="logo-picker__preview" id="logo-preview">${icon('store', { size: 24 })}</div>
+              <div class="logo-picker__actions">
+                <button type="button" class="text-btn" id="btn-pick-logo">${icon('plusCircle', { size: 14 })} Elegir logo</button>
+                <button type="button" class="text-btn" id="btn-remove-logo" hidden>${icon('trash', { size: 14 })} Quitar</button>
+              </div>
+            </div>
+            <input type="file" id="logo-input" accept="image/*" hidden />
+            <p class="field-hint">Se sube apenas creas tu cuenta. También puedes agregarlo después desde tu panel de vendedor.</p>
+          </div>
           <label class="field">
             <span class="field__label">RIF</span>
             <input type="text" name="rif" placeholder="J-12345678-9" />
@@ -100,6 +113,29 @@ export async function render(container, { query }) {
     storeFields.hidden = !wantsStoreCheckbox.checked;
     storeNameInput.required = wantsStoreCheckbox.checked;
     if (!wantsStoreCheckbox.checked) storeNameInput.value = '';
+  });
+
+  // El logo no puede subirse todavía (la tienda ni la cuenta existen) — se
+  // guarda el archivo elegido y se sube recién después de un registro
+  // exitoso (ver el submit handler más abajo), mismo criterio que las
+  // fotos pendientes de un producto nuevo en seller.js.
+  let pendingLogoFile = null;
+  const logoInput = container.querySelector('#logo-input');
+  const logoPreview = container.querySelector('#logo-preview');
+  const removeLogoBtn = container.querySelector('#btn-remove-logo');
+  container.querySelector('#btn-pick-logo')?.addEventListener('click', () => logoInput.click());
+  logoInput?.addEventListener('change', () => {
+    const file = logoInput.files[0];
+    logoInput.value = '';
+    if (!file) return;
+    pendingLogoFile = file;
+    logoPreview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="" />`;
+    removeLogoBtn.hidden = false;
+  });
+  removeLogoBtn?.addEventListener('click', () => {
+    pendingLogoFile = null;
+    logoPreview.innerHTML = icon('store', { size: 24 });
+    removeLogoBtn.hidden = true;
   });
 
   const categoryPills = container.querySelector('#register-category-pills');
@@ -171,6 +207,19 @@ export async function render(container, { query }) {
       errorEl.hidden = false;
       return;
     }
+
+    // El logo recién puede subirse ahora que la cuenta (y su token) ya
+    // existen. Si falla, la cuenta y la tienda ya quedaron creadas
+    // igual — se avisa y se puede reintentar después desde el panel de
+    // vendedor, nunca se bloquea el registro por esto.
+    if (wantsStore && pendingLogoFile) {
+      try {
+        await sellerService.uploadStoreLogo(pendingLogoFile);
+      } catch {
+        showToast('La cuenta se creó, pero el logo no se pudo subir. Puedes agregarlo después desde tu panel de vendedor.', 'error');
+      }
+    }
+
     showToast(`Cuenta creada. ¡Bienvenido, ${result.user.name.split(' ')[0]}!`, 'success');
     navigate(wantsStore ? '/vendedor' : next);
   });

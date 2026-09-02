@@ -1,7 +1,7 @@
 import { icon, whatsappGlyph } from '../ui/icons.js';
 import {
   productTile, availabilityBadge, typeBadge, verifiedBadge, starRatingBig, formatPrice,
-  escapeHtml, backHeaderHtml, emptyState, compatibilityNote, whatsappLink, deliveryOptionsRow, miniStarsRow, ratingInline,
+  escapeHtml, backHeaderHtml, emptyState, compatibilityNote, whatsappLink, deliveryOptionsRow, miniStarsRow, ratingInline, storeMark,
 } from '../ui/components.js';
 import { productService } from '../services/productService.js';
 import { storeService } from '../services/storeService.js';
@@ -75,7 +75,7 @@ export async function render(container, { segments }) {
 
       ${store ? `
       <section class="detail-block store-strip" data-store-id="${store.id}" role="button" tabindex="0">
-        <div class="store-strip__cover">${escapeHtml(store.initials)}</div>
+        ${storeMark(store, 'store-strip__cover')}
         <div class="store-strip__info">
           <p class="store-strip__name">${escapeHtml(store.name)} ${verifiedBadge({ compact: true })}</p>
           <p class="store-strip__meta">${escapeHtml(store.city)} <span class="dot-sep">·</span> ${ratingInline(store.rating)}</p>

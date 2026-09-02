@@ -326,6 +326,17 @@ storage propio). El flujo completo:
   el producto tiene alguna; si no, sigue cayendo a la ilustración SVG de
   `productArt.js` como *fallback* — nunca deja una ficha sin imagen.
 
+**✅ Ya implementado — logo real de tienda.** Mismo mecanismo que las fotos
+de producto, pero una sola imagen por tienda:
+`POST/DELETE /api/stores/mine/logo` (`server/src/routes/stores.js`) sube o
+quita `stores.logo_url`/`logo_public_id`, reemplazar borra el anterior en
+Cloudinary. Se puede subir al registrarse (`js/screens/register.js`, recién
+después de crear la cuenta — el logo necesita el token que devuelve el
+registro) o después desde "Editar información de mi tienda"
+(`js/screens/seller.js`). `storeMark()` (`js/ui/components.js`) es el
+mismo tipo de *fallback* que `productTile()`: muestra el logo real si
+existe, si no las iniciales de la tienda sobre el degradado de marca.
+
 **Todavía no implementado:**
 - Importación masiva de fotos (ZIP con nombre de archivo = SKU, o columnas
   `foto_url_1`/`foto_url_2` en el Excel) — diseño completo en

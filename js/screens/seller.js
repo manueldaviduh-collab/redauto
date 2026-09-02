@@ -242,6 +242,19 @@ function openStoreEditForm({ store, refresh }) {
     title: 'Editar información de mi tienda',
     bodyHtml: `
       <form id="store-form" class="stacked-form">
+        <div class="field">
+          <span class="field__label">Logo de tu tienda</span>
+          <div class="logo-picker" id="logo-picker">
+            <div class="logo-picker__preview" id="logo-preview">
+              ${store?.logoUrl ? `<img src="${escapeHtml(store.logoUrl)}" alt="" />` : icon('store', { size: 24 })}
+            </div>
+            <div class="logo-picker__actions">
+              <button type="button" class="text-btn" id="btn-pick-logo">${icon('plusCircle', { size: 14 })} ${store?.logoUrl ? 'Cambiar logo' : 'Subir logo'}</button>
+              <button type="button" class="text-btn" id="btn-remove-logo" ${store?.logoUrl ? '' : 'hidden'}>${icon('trash', { size: 14 })} Quitar logo</button>
+            </div>
+          </div>
+          <input type="file" id="logo-input" accept="image/*" hidden />
+        </div>
         <label class="field">
           <span class="field__label">Nombre de la tienda</span>
           <input type="text" name="name" required value="${escapeHtml(store?.name || '')}" />
@@ -293,6 +306,7 @@ function openStoreEditForm({ store, refresh }) {
       </form>
     `,
     onMount: (body) => {
+      bindLogoPicker(body, { refresh });
       const selectedIds = new Set(store?.categories || []);
       body.querySelector('#store-category-pills')?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-category-id]');
@@ -328,6 +342,53 @@ function openStoreEditForm({ store, refresh }) {
         }
       });
     },
+  });
+}
+
+// Logo de tienda: a diferencia de las fotos de producto (varias, deferidas
+// al guardar), acá es una sola imagen que se sube/quita al instante contra
+// la API — no hace falta esperar al submit del formulario completo.
+function bindLogoPicker(body, { refresh }) {
+  const input = body.querySelector('#logo-input');
+  const preview = body.querySelector('#logo-preview');
+  const pickBtn = body.querySelector('#btn-pick-logo');
+  const removeBtn = body.querySelector('#btn-remove-logo');
+
+  pickBtn.addEventListener('click', () => input.click());
+
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
+    pickBtn.disabled = true;
+    try {
+      const updated = await sellerService.uploadStoreLogo(file);
+      preview.innerHTML = `<img src="${escapeHtml(updated.logoUrl)}" alt="" />`;
+      pickBtn.innerHTML = `${icon('plusCircle', { size: 14 })} Cambiar logo`;
+      removeBtn.hidden = false;
+      showToast('Logo actualizado', 'success');
+      refresh();
+    } catch (err) {
+      showToast(err?.message || 'No se pudo subir el logo.', 'error');
+    } finally {
+      pickBtn.disabled = false;
+    }
+  });
+
+  removeBtn.addEventListener('click', async () => {
+    removeBtn.disabled = true;
+    try {
+      await sellerService.deleteStoreLogo();
+      preview.innerHTML = icon('store', { size: 24 });
+      pickBtn.innerHTML = `${icon('plusCircle', { size: 14 })} Subir logo`;
+      removeBtn.hidden = true;
+      showToast('Logo quitado', 'success');
+      refresh();
+    } catch (err) {
+      showToast(err?.message || 'No se pudo quitar el logo.', 'error');
+    } finally {
+      removeBtn.disabled = false;
+    }
   });
 }
 

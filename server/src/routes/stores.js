@@ -1,9 +1,18 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { pool } from '../db.js';
 import { requireAuth, requireSeller, requireAdmin, optionalAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { isImageStorageConfigured, uploadImageBuffer, deleteImage } from '../services/imageStorage.js';
 
 export const storesRouter = Router();
+
+// En memoria, nunca a disco (mismo criterio que las fotos de producto) — un
+// solo logo por tienda, no hace falta el límite de 8 de product_images.
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 },
+});
 
 // Misma forma que espera storeDetail.js/components.js (ver
 // js/data/stores.js). Los campos que este MVP todavía no recoge en el
@@ -119,6 +128,48 @@ storesRouter.patch('/mine', requireAuth, requireSeller, asyncHandler(async (req,
     }
   }
 
+  res.json(await withExtras(result.rows[0]));
+}));
+
+// POST /api/stores/mine/logo — sube/reemplaza el logo real de la propia
+// tienda. multipart/form-data, campo "file" (mismo patrón que las fotos de
+// producto: multer en memoria, nunca a disco). Si ya había un logo, el
+// anterior se borra de Cloudinary después de guardar el nuevo (best-effort:
+// si ese borrado falla, igual queda el logo nuevo puesto, nunca al revés).
+storesRouter.post('/mine/logo', requireAuth, requireSeller, logoUpload.single('file'), asyncHandler(async (req, res) => {
+  if (!isImageStorageConfigured()) {
+    return res.status(503).json({ error: 'La subida de logo todavía no está configurada en el servidor.' });
+  }
+  const own = await pool.query('SELECT id, logo_public_id FROM stores WHERE owner_user_id = $1', [req.auth.id]);
+  const store = own.rows[0];
+  if (!store) return res.status(404).json({ error: 'Tu cuenta de vendedor no tiene una tienda asociada.' });
+  if (!req.file) return res.status(400).json({ error: 'Selecciona una imagen.' });
+  if (!req.file.mimetype.startsWith('image/')) return res.status(400).json({ error: 'El archivo debe ser una imagen.' });
+
+  const uploaded = await uploadImageBuffer(req.file.buffer, { folder: `redauto/stores/${store.id}` });
+  const result = await pool.query(
+    'UPDATE stores SET logo_url = $1, logo_public_id = $2 WHERE id = $3 RETURNING *',
+    [uploaded.url, uploaded.publicId, store.id]
+  );
+  if (store.logo_public_id) {
+    deleteImage(store.logo_public_id).catch((err) => console.error('No se pudo borrar el logo anterior en Cloudinary:', err));
+  }
+  res.status(201).json(await withExtras(result.rows[0]));
+}));
+
+// DELETE /api/stores/mine/logo — quita el logo (la tienda vuelve a mostrar
+// sus iniciales en la navegación).
+storesRouter.delete('/mine/logo', requireAuth, requireSeller, asyncHandler(async (req, res) => {
+  const own = await pool.query('SELECT id, logo_public_id FROM stores WHERE owner_user_id = $1', [req.auth.id]);
+  const store = own.rows[0];
+  if (!store) return res.status(404).json({ error: 'Tu cuenta de vendedor no tiene una tienda asociada.' });
+  const result = await pool.query(
+    'UPDATE stores SET logo_url = NULL, logo_public_id = NULL WHERE id = $1 RETURNING *',
+    [store.id]
+  );
+  if (store.logo_public_id) {
+    deleteImage(store.logo_public_id).catch((err) => console.error('No se pudo borrar el logo en Cloudinary:', err));
+  }
   res.json(await withExtras(result.rows[0]));
 }));
 

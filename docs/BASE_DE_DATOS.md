@@ -62,7 +62,7 @@ stores
 ├─ owner_user_id          uuid FK → users.id   -- UNIQUE: 1 usuario = máximo 1 tienda propia
 ├─ name, rif, responsible_name             text NULL
 ├─ city, state, address, phone, whatsapp     text NULL
-├─ logo_url                                    text NULL  -- listo para cuando haya subida real de logo
+├─ logo_url, logo_public_id                    text NULL  -- subida real a Cloudinary (POST/DELETE /api/stores/mine/logo)
 ├─ about                                          text NULL
 ├─ verification_status      text  CHECK IN ('pendiente','verificada','rechazada')
 │                              -- default 'pendiente': toda tienda que se
@@ -190,7 +190,7 @@ stores                   ✅ implementada (versión más chica: sin slug/hours/
 ├─ response_time_minutes       int NULL              -- objetivo, no implementado
 ├─ verification_status          enum('pendiente','verificada','rechazada')  -- default 'pendiente' ✅
 ├─ about                            text
-├─ logo_url                           text NULL  -- columna lista; sin subida real todavía (logo de tienda, no fotos de producto — ver §4.1)
+├─ logo_url, logo_public_id            text NULL  -- ✅ subida real a Cloudinary (POST/DELETE /api/stores/mine/logo, ver ARQUITECTURA.md §9)
 ├─ cover_url                             text NULL  -- objetivo, no implementado
 ├─ rating_cached, reviews_count_cached, sales_count_cached, on_time_delivery_pct
 │                                      -- objetivo, no implementado: hoy la API devuelve 0/null honesto

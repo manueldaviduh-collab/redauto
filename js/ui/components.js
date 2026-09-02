@@ -223,10 +223,22 @@ export function productCardSkeleton() {
   </div>`;
 }
 
+// Si la tienda subió un logo real (store.logoUrl) se muestra esa foto — si
+// no, sus iniciales sobre el degradado de marca. Mismo criterio que
+// productTile() con fotos de producto: nunca se inventa una imagen que la
+// tienda no subió. className es la caja que ya define tamaño/forma en cada
+// lugar donde se usa (.store-card__cover, .store-strip__cover).
+export function storeMark(store, className) {
+  if (store.logoUrl) {
+    return `<div class="${className} ${className}--photo"><img src="${escapeHtml(store.logoUrl)}" alt="" loading="lazy" /></div>`;
+  }
+  return `<div class="${className}">${escapeHtml(store.initials)}</div>`;
+}
+
 export function storeCard(store) {
   return `
   <article class="store-card" data-store-id="${store.id}" tabindex="0" role="button" aria-label="${escapeHtml(store.name)}">
-    <div class="store-card__cover">${escapeHtml(store.initials)}</div>
+    ${storeMark(store, 'store-card__cover')}
     <div class="store-card__body">
       <div class="store-card__title-row">
         <p class="store-card__name">${escapeHtml(store.name)}</p>

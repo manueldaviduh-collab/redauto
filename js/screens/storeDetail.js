@@ -35,7 +35,9 @@ export async function render(container, { segments }) {
       `,
     })}
     <div class="store-cover">
-      <span class="store-cover__initials">${escapeHtml(store.initials)}</span>
+      ${store.logoUrl
+        ? `<img class="store-cover__logo" src="${escapeHtml(store.logoUrl)}" alt="" loading="lazy" />`
+        : `<span class="store-cover__initials">${escapeHtml(store.initials)}</span>`}
     </div>
     <div class="screen-pad">
       <div class="store-header-row">

@@ -49,6 +49,18 @@ export const sellerService = {
     return api.patch('/stores/mine', patch, { auth: true });
   },
 
+  // Logo real de la tienda (Cloudinary detrás de la API, mismo mecanismo
+  // que las fotos de producto). Devuelve la tienda completa actualizada.
+  async uploadStoreLogo(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.upload('/stores/mine/logo', formData, { auth: true });
+  },
+
+  async deleteStoreLogo() {
+    return api.del('/stores/mine/logo', { auth: true });
+  },
+
   // El vendedor confirma que cobró un pedido (transferencia/pago móvil
   // coordinado por fuera de la app) o lo cancela — no hay pasarela de pago
   // real conectada todavía (ver docs/ROADMAP.md).

@@ -50,6 +50,9 @@ CREATE TABLE IF NOT EXISTS stores (
   phone                TEXT,
   whatsapp             TEXT,
   logo_url             TEXT,
+  -- Id que Cloudinary necesita para poder borrar el logo ahí también cuando
+  -- se reemplaza o se quita (mismo criterio que product_images.public_id).
+  logo_public_id       TEXT,
   about                TEXT,
   -- Toda tienda que se autorregistra queda pendiente hasta que el fundador
   -- (o un admin) la apruebe a mano — ya no se auto-verifica (ver
@@ -69,6 +72,7 @@ ALTER TABLE stores ADD COLUMN IF NOT EXISTS responsible_name TEXT;
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS state TEXT;
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS whatsapp TEXT;
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS logo_public_id TEXT;
 -- Corrige el default de una base ya migrada con el esquema anterior (que
 -- auto-verificaba). El código de /auth/register ya fija 'pendiente'
 -- explícitamente en el INSERT — esto es defensa adicional, no la única
