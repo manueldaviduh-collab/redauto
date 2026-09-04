@@ -56,13 +56,15 @@
 /* html/body NUNCA hacen scroll — el documento siempre mide exactamente el
    viewport, sin importar si el contenido de la pantalla activa es más
    corto o más largo que la pantalla. Es el .app-shell de abajo el que
-   hace scroll de su propio contenido. Sin esto, en iOS (sobre todo en modo
-   standalone) una pantalla con poco contenido (carrito vacío, tiendas sin
-   resultados, perfil sin sesión) deja al documento "sin necesidad de
-   scroll", y ahí la barra inferior (position: fixed) se posiciona mal —
-   se queda más arriba del borde real — hasta que una pantalla con
-   suficiente contenido (como Inicio) fuerza a recalcularla bien. */
-html, body { height: 100%; overflow: hidden; }
+   hace scroll de su propio contenido.
+   height: 100dvh (con 100% como respaldo si el navegador no soporta dvh)
+   en vez de 100%: en iOS, sobre todo en modo standalone (app agregada al
+   Home Screen), "100%"/"100vh" a veces mide un poco más alto que lo que
+   en verdad se ve en pantalla — y ahí la barra inferior (position: fixed,
+   bottom: 0) queda pegada al fondo de esa medida "fantasma" en vez del
+   borde real, dejando un hueco visible debajo. dvh siempre refleja el
+   alto real y visible del viewport. */
+html, body { height: 100%; height: 100dvh; overflow: hidden; }
 body {
   margin: 0;
   background: var(--color-bg);
@@ -198,7 +200,7 @@ img, svg { display: block; max-width: 100%; }
    haciendo que dejen de fijarse al viewport real y se desubiquen. Por eso
    tampoco se usa esa propiedad acá: en iOS moderno el scroll con inercia
    ya es nativo en cualquier overflow:auto, no hace falta pedirlo aparte. */
-.app-shell { height: 100%; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior-y: contain; }
+.app-shell { height: 100%; height: 100dvh; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior-y: contain; }
 .screen-content {
   flex: 1;
   padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 12px);
