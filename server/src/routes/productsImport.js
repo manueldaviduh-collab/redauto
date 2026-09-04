@@ -31,9 +31,9 @@ productsImportRouter.get('/template', asyncHandler(async (req, res) => {
 // nada en la base de datos. El vendedor revisa el resultado antes de
 // confirmar (ver js/ui/productImport.js).
 productsImportRouter.post('/preview', requireAuth, requireSeller, upload.single('file'), asyncHandler(async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Sube un archivo .xlsx.' });
+  if (!req.file) return res.status(400).json({ error: 'Sube un archivo .xlsx o .csv.' });
   const categories = (await pool.query('SELECT id, name FROM categories')).rows;
-  const result = await parseImportWorkbook(req.file.buffer, categories);
+  const result = await parseImportWorkbook(req.file.buffer, categories, req.file.originalname);
   res.json(result);
 }));
 
@@ -43,12 +43,12 @@ productsImportRouter.post('/preview', requireAuth, requireSeller, upload.single(
 // sku) en una sola transacción, para que una importación a medio camino
 // nunca deje productos sueltos si algo falla.
 productsImportRouter.post('/commit', requireAuth, requireSeller, upload.single('file'), asyncHandler(async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Sube un archivo .xlsx.' });
+  if (!req.file) return res.status(400).json({ error: 'Sube un archivo .xlsx o .csv.' });
   const storeId = await getOwnStoreId(req.auth.id);
   if (!storeId) return res.status(404).json({ error: 'Tu cuenta de vendedor no tiene una tienda asociada.' });
 
   const categories = (await pool.query('SELECT id, name FROM categories')).rows;
-  const { products, errors } = await parseImportWorkbook(req.file.buffer, categories);
+  const { products, errors } = await parseImportWorkbook(req.file.buffer, categories, req.file.originalname);
   if (!products.length) {
     return res.status(400).json({ error: 'No hay productos válidos para importar.', errors });
   }

@@ -286,3 +286,74 @@ demostración (por ejemplo, un modo "vista previa" para un vendedor nuevo
 antes de que su tienda esté verificada), debería vivir claramente marcado
 como tal en su propia pantalla — nunca mezclado sin distinción en la
 navegación real de compra.
+
+---
+
+## ADR-009 — Importación masiva: arquitectura de adaptadores por fuente
+
+**Contexto:** hasta ahora, `server/src/services/productImportParser.js`
+sólo sabía leer un `.xlsx` con las columnas exactas de la plantilla
+oficial de RedAuto — cualquier otro formato fallaba con "faltan columnas
+obligatorias". El objetivo es que una tienda pueda subir el archivo que ya
+exporta de su propio sistema (A2, Saint, Valery u otro) sin tener que
+pasarlo antes por la plantilla de RedAuto a mano. Se decidió avanzar de
+forma gradual: por ahora sólo cargas manuales de archivo (nada de
+sincronización automática ni integraciones directas con esos sistemas).
+
+**Decisión:** partir el parser en tres capas, cada una con una sola
+responsabilidad:
+1. **Lectura del archivo** (`import/readTabularFile.js`) — convierte
+   `.xlsx` o `.csv` a una misma hoja de trabajo, sin saber nada de
+   columnas de negocio.
+2. **Adaptador por fuente** (`import/adapters/*.js`) — traduce esa hoja al
+   vocabulario interno común (`sku`, `nombre`, `categoria`, `precio`, …).
+   Cada fuente nueva (A2, Saint, Valery, otra) es un adaptador nuevo en
+   este directorio; ninguna otra pieza del sistema cambia para eso.
+3. **Validación y agrupado** (`import/validateAndGroup.js`) — reglas de
+   negocio (categoría real, precio válido, agrupar por SKU, compatibilidad
+   de vehículos), **exactamente las mismas de siempre**, sin importar de
+   qué fuente vino la fila.
+
+La fuente del archivo se detecta sola: cada adaptador expone
+`matches(hoja)`, y se prueba cada uno registrado (`import/adapters/index.js`)
+hasta encontrar el que reconoce el archivo — el vendedor nunca tiene que
+elegir ni indicar de dónde viene su archivo. Si ninguno lo reconoce, se
+avisa con un mensaje honesto en vez de adivinar y mapear mal (ver
+`PRINCIPIOS.md`, Transparencia).
+
+Hoy sólo existe un adaptador real: `redautoAdapter.js`, que reproduce
+exactamente el comportamiento de siempre (mismas columnas, mismos
+mensajes de error). Verificado con una comparación byte a byte contra el
+parser anterior antes de reemplazarlo.
+
+**Alternativas consideradas:**
+- *Selector de fuente en la UI* (el vendedor elige "A2"/"Saint"/etc. antes
+  de subir). Se descartó para esta fase: con un solo adaptador real no
+  aporta nada, y la detección automática es más simple para el vendedor
+  cuando haya más de una fuente.
+- *Un único parser con `if/else` por fuente.* Es lo que había implícito
+  antes de esta ADR (sólo RedAuto). Escala mal: cada fuente nueva
+  arriesgaría tocar la validación compartida y duplicar reglas de negocio
+  con pequeñas diferencias entre sí — justo el tipo de bug silencioso que
+  este proyecto evita a propósito en otras áreas.
+
+**Consecuencias:**
+- Agregar A2/Saint/Valery cuando haya un archivo de ejemplo real es: un
+  archivo nuevo en `import/adapters/` + una línea en el registro. Cero
+  cambios en rutas, en el flujo preview→commit, ni en el frontend.
+- El frontend (`js/ui/productImport.js`) no cambió — ya aceptaba `.xlsx`
+  y `.csv` en el input de archivo (una promesa que antes no se cumplía
+  del lado del backend; ahora sí).
+- Deliberadamente **no** se tocó el esquema de base de datos ni se agregó
+  ningún campo de "fuente"/"sincronizado desde" a `products` — no hace
+  falta mientras la importación siga siendo manual y puntual. El día que
+  esto se vuelva una sincronización recurrente (precios/stock que cambian
+  seguido), hará falta revisar esto para no pisar ediciones manuales del
+  vendedor — explícitamente fuera de alcance de esta ADR.
+
+**Cuándo reconsiderar:** al construir el primer adaptador real (A2, Saint
+o Valery) con un archivo de ejemplo de verdad — puede revelar necesidades
+que hoy no se pueden anticipar sin adivinar (mapeo de categorías externas,
+precio de costo vs. venta, formato real de la compatibilidad de
+vehículos). También si la importación deja de ser "el vendedor sube un
+archivo cuando quiere" y pasa a ser una sincronización recurrente.

@@ -259,7 +259,7 @@ pero ya tiene una pantalla — no hace falta SQL para el día a día.
 | POST | `/api/products` | Bearer (vendedor) | Crear producto — `compatibility: [{brand,model,yearFrom?,yearTo?,engine?,trim?}]` obligatorio (mínimo 1) |
 | PATCH | `/api/products/:id` | Bearer (vendedor) | Editar un producto tuyo; si mandas `compatibility`, reemplaza la lista completa |
 | GET | `/api/products/import/template` | — | Descarga la plantilla oficial de Excel (.xlsx) |
-| POST | `/api/products/import/preview` | Bearer (vendedor) | Sube un `.xlsx` (`multipart/form-data`, campo `file`) → valida sin escribir nada |
+| POST | `/api/products/import/preview` | Bearer (vendedor) | Sube un `.xlsx` o `.csv` (`multipart/form-data`, campo `file`) → valida sin escribir nada. Reconoce automáticamente de qué fuente es el archivo — ver `docs/DECISIONES.md`, arquitectura de adaptadores de importación |
 | POST | `/api/products/import/commit` | Bearer (vendedor) | Sube el mismo archivo → importa (upsert por SKU) |
 | GET | `/api/products/:id/images` | Bearer (vendedor) | Fotos del producto (con id, para poder borrar/reordenar) |
 | POST | `/api/products/:id/images` | Bearer (vendedor) | Sube una foto (`multipart/form-data`, campo `file`) — máx. 8 por producto; `503` si Cloudinary no está configurado |
