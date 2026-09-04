@@ -92,22 +92,23 @@ img, svg { display: block; max-width: 100%; }
 .icon { display: block; flex-shrink: 0; }
 
 /* ---------- Splash screen ----------
-   Secuencia coreografiada, no todo apareciendo a la vez: el glow ambiental
-   se asienta primero, el logo entra con un "pop" suave y un brillo que lo
-   recorre una sola vez, luego el nombre y el tagline se revelan en cascada,
-   y por último la barra de progreso — cada elemento anima UNA propiedad
-   distinta (opacity acá, transform allá) para poder combinar una animación
-   de entrada de una sola vez con un loop continuo sin que se pisen. */
+   Minimalista al estilo del boot de una app nativa (Apple): fondo negro
+   liso, sólo el logo y un anillo de carga circular alrededor — nada de
+   texto ni de rebote, para que se sienta sobrio y confiado en vez de
+   "juguetón". El glow ambiental se asienta primero, el logo entra con un
+   fundido/escala sin rebote, y el anillo se llena una sola vez en lo que
+   dura el splash (ver SPLASH_MIN_MS en js/app.js) — cada pieza anima su
+   propia propiedad para poder combinarlas sin que se pisen.*/
 .splash {
   position: fixed; inset: 0; z-index: 100;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 28px; background: var(--color-bg); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-bg); overflow: hidden;
   transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .splash.is-hidden { opacity: 0; transform: scale(1.06); pointer-events: none; }
 
 .splash__glow {
-  position: absolute; top: 38%; left: 50%; width: 520px; height: 520px;
+  position: absolute; top: 50%; left: 50%; width: 520px; height: 520px;
   transform: translate(-50%, -50%) scale(1);
   background: radial-gradient(circle, rgba(229,57,53,0.4), rgba(229,57,53,0.1) 45%, transparent 72%);
   filter: blur(6px);
@@ -115,54 +116,26 @@ img, svg { display: block; max-width: 100%; }
   animation: splash-glow-in 900ms ease forwards, splash-glow-breathe 3.6s ease-in-out infinite;
 }
 
-.splash__brand { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; }
-
-/* Capa exterior: el bamboleo continuo (translateY) — arranca recién cuando
-   la entrada ya se asentó, para que no se sientan dos movimientos a la vez. */
-.splash__logo-float {
-  animation: splash-logo-float 4s ease-in-out 950ms infinite;
+.splash__ring-wrap {
+  position: relative; width: 176px; height: 176px;
+  display: flex; align-items: center; justify-content: center;
 }
-/* Capa interior: la entrada (scale+opacity con rebote) + el brillo, en su
-   propio elemento para no competir por la propiedad transform con el float. */
-.splash__logo-wrap {
-  position: relative; width: 84px; height: 84px; border-radius: 22px; overflow: hidden;
-  opacity: 0; transform: scale(0.62) translateY(8px);
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 18px 40px rgba(229,57,53,0.35);
-  animation: splash-logo-in 680ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+.splash__ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+.splash__ring-track, .splash__ring-fill {
+  fill: none; stroke-width: 5; stroke-linecap: round;
 }
-.splash__logo-wrap::after {
-  content: ''; position: absolute; inset: 0; z-index: 1;
-  background: linear-gradient(115deg, transparent 42%, rgba(255,255,255,0.55) 50%, transparent 58%);
-  transform: translateX(-130%);
-  animation: splash-shine 950ms ease 520ms 1;
+.splash__ring-track { stroke: rgba(255,255,255,0.1); }
+.splash__ring-fill {
+  stroke: var(--color-red);
+  stroke-dasharray: 339.3;
+  stroke-dashoffset: 339.3;
+  filter: drop-shadow(0 0 6px rgba(229,57,53,0.65));
+  animation: splash-ring-fill 1500ms cubic-bezier(0.4, 0, 0.2, 1) 350ms forwards;
 }
-.splash__logo { width: 100%; height: 100%; display: block; }
-
-.splash__word {
-  font-size: 26px; font-weight: 800; letter-spacing: 0.3px; color: var(--color-white);
-  opacity: 0; transform: translateY(10px);
-  animation: splash-text-in 550ms cubic-bezier(0.2, 0.7, 0.3, 1) 260ms forwards;
-}
-.splash__word .accent { color: var(--color-red); }
-.splash__tagline {
-  font-size: 11.5px; font-weight: 600; letter-spacing: 2.2px; text-transform: uppercase;
-  color: var(--color-text-muted);
-  opacity: 0; transform: translateY(8px);
-  animation: splash-text-in 550ms cubic-bezier(0.2, 0.7, 0.3, 1) 460ms forwards;
-}
-
-.splash__progress {
-  position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%);
-  width: 140px; height: 3px; border-radius: var(--radius-pill);
-  background: var(--color-surface-2); overflow: hidden;
-  opacity: 0;
-  animation: splash-progress-in 400ms ease 650ms forwards;
-}
-.splash__progress-bar {
-  display: block; height: 100%; width: 0%; border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-red-dark), var(--color-red));
-  box-shadow: 0 0 12px rgba(229,57,53,0.55);
-  animation: splash-progress-fill 1250ms cubic-bezier(0.2, 0.7, 0.3, 1) 650ms forwards;
+.splash__logo {
+  position: relative; width: 108px;
+  opacity: 0; transform: scale(0.85);
+  animation: splash-logo-in 620ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes splash-glow-in { to { opacity: 1; } }
@@ -170,27 +143,14 @@ img, svg { display: block; max-width: 100%; }
   0%, 100% { transform: translate(-50%, -50%) scale(1); }
   50% { transform: translate(-50%, -50%) scale(1.1); }
 }
-@keyframes splash-logo-in { to { opacity: 1; transform: scale(1) translateY(0); } }
-@keyframes splash-shine {
-  to { transform: translateX(130%); }
-}
-@keyframes splash-logo-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-}
-@keyframes splash-text-in { to { opacity: 1; transform: translateY(0); } }
-@keyframes splash-progress-in { to { opacity: 1; } }
-@keyframes splash-progress-fill { to { width: 100%; } }
+@keyframes splash-logo-in { to { opacity: 1; transform: scale(1); } }
+@keyframes splash-ring-fill { to { stroke-dashoffset: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .splash__glow, .splash__logo-float, .splash__logo-wrap, .splash__logo-wrap::after,
-  .splash__word, .splash__tagline, .splash__progress, .splash__progress-bar {
-    animation: none !important;
-  }
+  .splash__glow, .splash__ring-fill, .splash__logo { animation: none !important; }
   .splash__glow { opacity: 1; }
-  .splash__logo-wrap { opacity: 1; transform: none; }
-  .splash__word, .splash__tagline, .splash__progress { opacity: 1; transform: none; }
-  .splash__progress-bar { width: 100%; }
+  .splash__ring-fill { stroke-dashoffset: 0; }
+  .splash__logo { opacity: 1; transform: none; }
 }
 
 /* ---------- Layout shell ---------- */

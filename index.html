@@ -43,16 +43,13 @@
 <body>
   <div id="splash" class="splash" role="presentation">
     <div class="splash__glow" aria-hidden="true"></div>
-    <div class="splash__brand">
-      <div class="splash__logo-float">
-        <div class="splash__logo-wrap">
-          <img class="splash__logo" src="assets/logo-mark.png" alt="" />
-        </div>
-      </div>
-      <p class="splash__word">Red<span class="accent">Auto</span></p>
-      <p class="splash__tagline">Repuestos · Confianza · Verificados</p>
+    <div class="splash__ring-wrap">
+      <svg class="splash__ring" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="splash__ring-track" cx="60" cy="60" r="54" />
+        <circle class="splash__ring-fill" cx="60" cy="60" r="54" />
+      </svg>
+      <img class="splash__logo" src="assets/splash-logo.png" alt="RedAuto" />
     </div>
-    <div class="splash__progress"><span class="splash__progress-bar"></span></div>
   </div>
 
   <div id="app" class="app-shell">

@@ -218,8 +218,10 @@ llamada a un backend real, no debería tocar ninguna pantalla.
 
 ## Flujos funcionales implementados
 
-1. **Splash screen** — logo con glow rojo y barra de progreso (~1.7s) antes de
-   entrar a la app.
+1. **Splash screen** — minimalista, al estilo del arranque de una app nativa:
+   fondo negro liso, glow rojo ambiental y el logo con un anillo de carga
+   circular alrededor (sin texto ni barra abajo), ~2s antes de entrar a la
+   app.
 2. **Inicio** — buscador, sección "Mis vehículos" (chips del garage o CTA para
    agregar el primero), categorías, productos destacados y tiendas
    verificadas, con estados de carga (skeletons) reales.

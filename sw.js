@@ -12,7 +12,7 @@
 // primera visita después de cada despliegue, hasta la siguiente recarga.
 // Cambiar CACHE_VERSION fuerza además una limpieza completa de caché
 // (usarlo si algún día hace falta invalidar todo de una vez).
-const CACHE_VERSION = 'redauto-shell-v3';
+const CACHE_VERSION = 'redauto-shell-v4';
 
 const PRECACHE_URLS = [
   '/',
@@ -66,6 +66,7 @@ const PRECACHE_URLS = [
   '/js/pwa.js',
   '/assets/favicon.png',
   '/assets/logo-mark.png',
+  '/assets/splash-logo.png',
   '/assets/icons/apple-touch-icon.png',
   '/assets/icons/apple-touch-icon-120.png',
   '/assets/icons/apple-touch-icon-152.png',
