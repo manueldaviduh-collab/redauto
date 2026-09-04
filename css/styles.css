@@ -192,10 +192,13 @@ img, svg { display: block; max-width: 100%; }
 }
 
 /* ---------- Layout shell ---------- */
-.app-shell {
-  height: 100%; display: flex; flex-direction: column;
-  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
-}
+/* .bottom-nav (position: fixed) vive FUERA de .app-shell a propósito (ver
+   index.html) — -webkit-overflow-scrolling: touch en un contenedor con
+   scroll puede "atrapar" a sus descendientes position:fixed en iOS,
+   haciendo que dejen de fijarse al viewport real y se desubiquen. Por eso
+   tampoco se usa esa propiedad acá: en iOS moderno el scroll con inercia
+   ya es nativo en cualquier overflow:auto, no hace falta pedirlo aparte. */
+.app-shell { height: 100%; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior-y: contain; }
 .screen-content {
   flex: 1;
   padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 12px);
