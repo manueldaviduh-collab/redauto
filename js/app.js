@@ -1,11 +1,14 @@
 import { startRouter } from './router.js';
 
 // PANEL DE DIAGNÓSTICO TEMPORAL — quitar una vez resuelto el bug de la
-// barra inferior en iOS (ver conversación). Sólo aparece con ?debug=1 en
-// la URL, nunca para un usuario normal. Muestra las medidas reales del
+// barra inferior en iOS (ver conversación). Muestra las medidas reales del
 // viewport y de la barra inferior directamente en pantalla, para
 // diagnosticar sin depender de interpretar capturas de pantalla.
-if (new URLSearchParams(location.search).has('debug')) {
+// TEMPORALMENTE siempre visible (sin el gate de ?debug=1) para poder leerlo
+// también desde la app instalada en el Home Screen, que no tiene barra de
+// direcciones donde escribir el query param — volver a poner el gate (o
+// quitar el panel entero) apenas se confirme el diagnóstico.
+if (true) {
   const panel = document.createElement('div');
   panel.style.cssText = [
     'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:99999',
