@@ -20,9 +20,17 @@
   <link rel="apple-touch-icon" sizes="152x152" href="assets/icons/apple-touch-icon-152.png" />
   <link rel="apple-touch-icon" sizes="120x120" href="assets/icons/apple-touch-icon-120.png" />
 
-  <!-- Modo standalone al abrir desde el Home Screen en iOS -->
+  <!-- Modo standalone al abrir desde el Home Screen en iOS.
+       status-bar-style "black" (no "black-translucent"): con translucent,
+       iOS calcula mal window.innerHeight en standalone en algunos modelos
+       — el contenido se ve edge-to-edge bajo la barra de estado, pero el
+       motor de layout reserva de menos, y esa diferencia (el alto exacto
+       de la barra de estado) queda como espacio muerto al fondo, debajo
+       de la barra inferior. Con "black" ese espacio queda reservado de
+       verdad (barra de estado opaca, mismo color oscuro de la app, visualmente
+       casi idéntico) y window.innerHeight ya no queda corto. -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <meta name="apple-mobile-web-app-title" content="RedAuto" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="application-name" content="RedAuto" />
