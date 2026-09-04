@@ -24,7 +24,12 @@ export function openModal({ title, bodyHtml, onMount, ariaLabel }) {
   `;
   root.querySelectorAll('[data-close-modal]').forEach((el) => {
     el.addEventListener('click', (e) => {
-      if (e.target === el) closeModal();
+      // Al fondo (overlay) sólo cierra si el clic fue directo ahí (no si
+      // "burbujeó" desde el sheet). Al botón "X" sí lo hace siempre —
+      // e.target puede ser el ícono SVG de adentro, no el <button> en sí,
+      // así que exigir e.target === el ahí dejaba el botón sin responder.
+      if (el.classList.contains('modal-overlay') && e.target !== el) return;
+      closeModal();
     });
   });
   const sheet = root.querySelector('.modal-sheet');

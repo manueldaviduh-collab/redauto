@@ -65,7 +65,9 @@ async function renderCurrentRoute() {
   screenContent.classList.remove('screen-content--with-sticky-actions');
   updateCartBadges();
 
-  window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+  // .app-shell es el que hace scroll (html/body ya no — ver css/styles.css),
+  // así que "volver arriba" al navegar hay que aplicarlo ahí, no en window.
+  document.querySelector('.app-shell')?.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
 
   // Entrada suave por navegación: la clase se agrega antes de invocar
   // render() (cubre el primer paint síncrono, típicamente un skeleton) y se

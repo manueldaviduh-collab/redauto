@@ -53,15 +53,16 @@
 }
 
 * { box-sizing: border-box; }
-html, body { height: 100%; }
-html {
-  /* Sin esto, iOS deja rebotar el scroll más allá del contenido (rubber-band)
-     en pantallas cortas (carrito vacío, tiendas sin resultados, perfil sin
-     sesión) — y ese rebote despega momentáneamente la barra inferior
-     (position: fixed) del borde, dejando un hueco debajo. Con poco contenido
-     (como Inicio) casi no pasa porque el rebote no llega a activarse. */
-  overscroll-behavior-y: none;
-}
+/* html/body NUNCA hacen scroll — el documento siempre mide exactamente el
+   viewport, sin importar si el contenido de la pantalla activa es más
+   corto o más largo que la pantalla. Es el .app-shell de abajo el que
+   hace scroll de su propio contenido. Sin esto, en iOS (sobre todo en modo
+   standalone) una pantalla con poco contenido (carrito vacío, tiendas sin
+   resultados, perfil sin sesión) deja al documento "sin necesidad de
+   scroll", y ahí la barra inferior (position: fixed) se posiciona mal —
+   se queda más arriba del borde real — hasta que una pantalla con
+   suficiente contenido (como Inicio) fuerza a recalcularla bien. */
+html, body { height: 100%; overflow: hidden; }
 body {
   margin: 0;
   background: var(--color-bg);
@@ -191,7 +192,10 @@ img, svg { display: block; max-width: 100%; }
 }
 
 /* ---------- Layout shell ---------- */
-.app-shell { min-height: 100%; display: flex; flex-direction: column; }
+.app-shell {
+  height: 100%; display: flex; flex-direction: column;
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
+}
 .screen-content {
   flex: 1;
   padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 12px);
