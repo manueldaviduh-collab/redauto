@@ -304,6 +304,19 @@ export function bottomNavHtml(activeRoute) {
   return `<nav class="bottom-nav" aria-label="Navegación principal">${items}</nav>`;
 }
 
+// Actualiza cuál botón está activo sin tocar el nodo <nav> en sí — a
+// diferencia de reemplazar bottomNavHtml() entero en cada navegación (lo
+// que hacía router.js antes), esto no destruye/recrea el elemento
+// position:fixed de la barra inferior en cada cambio de pestaña, que era
+// justo lo que causaba que iOS la pintara mal por un instante al navegar.
+export function updateBottomNavActive(navEl, activeRoute) {
+  navEl.querySelectorAll('.bottom-nav__item').forEach((a, i) => {
+    const isActive = activeRoute === NAV_ITEMS[i].route;
+    a.classList.toggle('is-active', isActive);
+    a.setAttribute('aria-current', isActive ? 'page' : 'false');
+  });
+}
+
 export function backHeaderHtml(title, { rightHtml = '' } = {}) {
   return `
   <header class="top-header top-header--detail">

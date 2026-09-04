@@ -1,5 +1,5 @@
 import { parseHash } from './nav.js';
-import { bottomNavHtml } from './ui/components.js';
+import { bottomNavHtml, updateBottomNavActive } from './ui/components.js';
 import { cartService, CART_CHANGED_EVENT } from './services/cartService.js';
 import { closeModal } from './ui/modal.js';
 
@@ -54,7 +54,14 @@ async function renderCurrentRoute() {
   const screenContent = document.getElementById('screen-content');
   const bottomNavRoot = document.getElementById('bottom-nav-root');
 
-  if (bottomNavRoot) bottomNavRoot.innerHTML = bottomNavHtml(match.root || null);
+  if (bottomNavRoot) {
+    const existingNav = bottomNavRoot.querySelector('.bottom-nav');
+    if (existingNav) {
+      updateBottomNavActive(existingNav, match.root || null);
+    } else {
+      bottomNavRoot.innerHTML = bottomNavHtml(match.root || null);
+    }
+  }
   screenContent.classList.remove('screen-content--with-sticky-actions');
   updateCartBadges();
 
