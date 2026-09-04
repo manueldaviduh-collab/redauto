@@ -54,6 +54,14 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+html {
+  /* Sin esto, iOS deja rebotar el scroll más allá del contenido (rubber-band)
+     en pantallas cortas (carrito vacío, tiendas sin resultados, perfil sin
+     sesión) — y ese rebote despega momentáneamente la barra inferior
+     (position: fixed) del borde, dejando un hueco debajo. Con poco contenido
+     (como Inicio) casi no pasa porque el rebote no llega a activarse. */
+  overscroll-behavior-y: none;
+}
 body {
   margin: 0;
   background: var(--color-bg);
@@ -62,6 +70,7 @@ body {
   font-size: 15px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
 }
 body.no-scroll { overflow: hidden; }
 h1, h2, h3, p { margin: 0; }
@@ -743,6 +752,9 @@ img, svg { display: block; max-width: 100%; }
   background: rgba(15, 15, 17, 0.96); backdrop-filter: blur(14px);
   border-top: 1px solid var(--color-border);
   padding: 8px 6px calc(6px + var(--safe-bottom));
+  /* Fuerza su propia capa de composición — sin esto, en iOS a veces el fixed
+     + backdrop-filter parpadea/se despega un instante durante el scroll. */
+  transform: translateZ(0);
 }
 .bottom-nav__item {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
