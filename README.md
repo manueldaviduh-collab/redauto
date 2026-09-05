@@ -200,7 +200,7 @@ js/
     notificationService.js   Centro de notificaciones (leído/no leído, localStorage)
     adminService.js           Panel de administración: listar tiendas por estado, aprobar/rechazar
   ui/                   Presentación reutilizable
-    icons.js, productArt.js (ilustraciones de producto), components.js,
+    icons.js, categoryArt.js (render WebP de categoría), components.js,
     toast.js, modal.js, chat.js ("Preguntar a la tienda"),
     productImport.js (modal de importación masiva por Excel)
   screens/              Una pantalla = una función render(container, params)
@@ -367,11 +367,12 @@ tablas que el backend actual todavía no usa) está en
   grillas de producto/tienda ganan columnas, sin perder la jerarquía
   "buscar repuesto es la acción principal". Transición de entrada suave
   entre pantallas y microinteracciones (hover/tap) en tarjetas y botones.
-- **Imágenes de producto:** no hay fotografía real disponible (sin banco de
-  imágenes con licencia ni generador de imágenes en este proyecto). Se usa
-  una ilustración vectorial propia por categoría (`js/ui/productArt.js`)
-  sobre tarjeta blanca —fondo blanco puro, producto centrado, sin texto ni
-  marcas de agua— como alternativa honesta a una foto de estudio real.
+- **Imágenes de producto:** foto real (Cloudinary) si la tienda subió
+  alguna; si no, un render 3D fotorrealista por categoría (`js/ui/categoryArt.js`,
+  ver `assets/category-art/README.md`) sobre tarjeta blanca —fondo
+  transparente, producto centrado, sin texto ni marcas de agua— y si ese
+  render tampoco existe todavía, cae al ícono de línea de la categoría.
+  Nunca se deja una ficha sin imagen.
 - El logo es el ícono de marca provisto por el usuario (recorte del archivo
   original en `assets/`), no una reinterpretación.
 - **Principio de conversión:** toda la experiencia está pensada para que la

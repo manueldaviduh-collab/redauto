@@ -337,9 +337,9 @@ ya lo señalaban como la opción sin Supabase):
   suben recién al guardar el producto) y agregar/borrar/reordenar en vivo
   para uno ya existente.
 - `productTile()` (`js/ui/components.js`) usa la primera foto real si el
-  producto tiene alguna, y sólo cae al SVG de `productArt.js` como
-  *fallback* cuando no hay ninguna — así quedó conectado sin tocar ninguna
-  pantalla que ya llama a `productTile()`.
+  producto tiene alguna, y sólo cae al render WebP de categoría de
+  `categoryArt.js` como *fallback* cuando no hay ninguna — así quedó
+  conectado sin tocar ninguna pantalla que ya llama a `productTile()`.
 
 **Importación masiva de fotos — sigue sin implementar, a propósito** (el
 pedido de onboarding pidió explícitamente "sólo preparar la estructura").

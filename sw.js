@@ -12,7 +12,7 @@
 // primera visita después de cada despliegue, hasta la siguiente recarga.
 // Cambiar CACHE_VERSION fuerza además una limpieza completa de caché
 // (usarlo si algún día hace falta invalidar todo de una vez).
-const CACHE_VERSION = 'redauto-shell-v4';
+const CACHE_VERSION = 'redauto-shell-v5';
 
 const PRECACHE_URLS = [
   '/',
@@ -59,7 +59,7 @@ const PRECACHE_URLS = [
   '/js/ui/components.js',
   '/js/ui/icons.js',
   '/js/ui/modal.js',
-  '/js/ui/productArt.js',
+  '/js/ui/categoryArt.js',
   '/js/ui/productImport.js',
   '/js/ui/toast.js',
   '/js/data/venezuelaStates.js',
@@ -80,9 +80,29 @@ const PRECACHE_URLS = [
   '/assets/icons/favicon-32.png',
 ];
 
+// Renders WebP de categoría (ver assets/category-art/README.md) — 256px y
+// 512px por categoría, mismos id que js/data/categories.js (este archivo
+// es un script clásico, no un módulo, así que no puede importarlos: hay
+// que mantener esta lista igual que ya se hace a mano con cada ruta de
+// arriba). Mientras el render definitivo de una categoría no exista
+// todavía, su URL simplemente da 404 — no puede ir dentro de
+// PRECACHE_URLS porque cache.addAll() es atómico y un solo 404 tumbaría la
+// instalación completa del service worker. Se agregan aparte, una por una,
+// e ignorando la que falle: la que sí exista queda precacheada, la que no
+// se reintenta sola la próxima vez que se suba CACHE_VERSION (ej. al
+// agregar el archivo real).
+const CATEGORY_ART_IDS = ['motor', 'frenos', 'suspension', 'baterias', 'aceites', 'filtros', 'iluminacion', 'cauchos'];
+const CATEGORY_ART_URLS = CATEGORY_ART_IDS.flatMap((id) =>
+  [256, 512].map((size) => `/assets/category-art/${id}-${size}.webp`)
+);
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting())
+    caches.open(CACHE_VERSION)
+      .then((cache) => cache.addAll(PRECACHE_URLS).then(() =>
+        Promise.all(CATEGORY_ART_URLS.map((url) => cache.add(url).catch(() => {})))
+      ))
+      .then(() => self.skipWaiting())
   );
 });
 

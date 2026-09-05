@@ -1,5 +1,5 @@
 import { icon } from './icons.js';
-import { productArt } from './productArt.js';
+import { categoryArt } from './categoryArt.js';
 import { getCategoryById } from '../data/categories.js';
 import { productService } from '../services/productService.js';
 import { cartService } from '../services/cartService.js';
@@ -125,14 +125,14 @@ function discountPercent(product) {
 
 // Si la tienda ya subió fotos reales (product.images, ver
 // server/src/routes/products.js) se muestra la primera. Si no, se usa el
-// tile ilustrado con el ícono de categoría sobre un degradado — nunca deja
-// la ficha vacía mientras una tienda no tenga fotos cargadas todavía.
+// render de categoría (ver categoryArt.js) — nunca deja la ficha vacía
+// mientras una tienda no tenga fotos cargadas todavía.
 export function productTile(product) {
   const category = getCategoryById(product.categoryId);
   if (product.images?.length) {
     return `<div class="product-tile product-tile--photo" role="img" aria-label="${escapeHtml(category?.name || 'Repuesto')}"><img src="${escapeHtml(product.images[0])}" alt="" loading="lazy" /></div>`;
   }
-  return `<div class="product-tile" role="img" aria-label="${escapeHtml(category?.name || 'Repuesto')}">${productArt(product.categoryId)}</div>`;
+  return `<div class="product-tile product-tile--art" role="img" aria-label="${escapeHtml(category?.name || 'Repuesto')}">${categoryArt(product.categoryId)}</div>`;
 }
 
 export function productCard(product, store) {

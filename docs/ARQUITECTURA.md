@@ -49,7 +49,7 @@ formulario de registro (ver §12).
 | Lógica | JavaScript ES2020+, módulos ES nativos del navegador (`import`/`export`) | Sin TypeScript ni bundler todavía — ver `DECISIONES.md`, ADR-001. El código ya está organizado en capas con contratos claros, que es la parte de "disciplina de tipos" que más importa a este tamaño |
 | Tipografía | Google Fonts (Poppins) | Única dependencia de red externa de la app; con fallback a fuentes del sistema si no hay conexión |
 | Iconografía | SVG propio (`js/ui/icons.js`) | Cero librerías de íconos externas |
-| Imágenes de producto | Foto real (Cloudinary) si la tienda subió alguna; si no, SVG generado en cliente (`js/ui/productArt.js`) como *fallback* | Ver §9 y `DECISIONES.md`, ADR-005 |
+| Imágenes de producto | Foto real (Cloudinary) si la tienda subió alguna; si no, render WebP de categoría (`js/ui/categoryArt.js`), con fallback a ícono si el WebP no existe | Ver §9 y `DECISIONES.md`, ADR-010 |
 
 **Herramientas de desarrollo (no forman parte del producto en sí):**
 
@@ -84,7 +84,7 @@ services/  → toda la lógica de negocio y el único punto de acceso a datos
 data/      → catálogos/semillas en memoria (el "contenido" del MVP)
 
 ui/        → presentación reutilizable (icons, components, chat, modal,
-              toast, productArt) — usada por screens/, y también consume
+              toast, categoryArt) — usada por screens/, y también consume
               algunos services/ directamente (ver §3.1)
 
 router.js / nav.js → capa transversal: decide qué screen renderizar y
@@ -158,8 +158,9 @@ js/
   ui/                   Presentación reutilizable, sin estado propio de
                          negocio (aparte de la excepción de §3.1)
     icons.js             Set de íconos SVG propio (sin librería externa)
-    productArt.js         Ilustraciones vectoriales de producto por
-                          categoría (ver §9, Almacenamiento de imágenes)
+    categoryArt.js         Render WebP de categoría por producto, con
+                          fallback a ícono (ver §9, Almacenamiento de
+                          imágenes)
     components.js          Tarjetas, badges, header, nav inferior,
                           bindProductCardEvents/bindStoreCardEvents
     chat.js                 Modal "Preguntar a la tienda"
@@ -323,8 +324,9 @@ storage propio). El flujo completo:
   guardar (para un producto nuevo, se suben recién al guardar) y
   agregar/borrar/reordenar en vivo para un producto ya existente.
 - `productTile()` (`js/ui/components.js`) muestra la primera foto real si
-  el producto tiene alguna; si no, sigue cayendo a la ilustración SVG de
-  `productArt.js` como *fallback* — nunca deja una ficha sin imagen.
+  el producto tiene alguna; si no, sigue cayendo al render WebP de
+  categoría de `categoryArt.js` como *fallback* — nunca deja una ficha sin
+  imagen. Ver ADR-010 en `DECISIONES.md`.
 
 **✅ Ya implementado — logo real de tienda.** Mismo mecanismo que las fotos
 de producto, pero una sola imagen por tienda:

@@ -136,6 +136,10 @@ pasar a History API por SEO y URLs limpias, ver el límite de SEO en
 
 ## ADR-005 — Ilustraciones vectoriales de producto en vez de fotos
 
+> **Superada por ADR-010.** Las ilustraciones SVG de `productArt.js` se
+> retiraron a favor de renders 3D fotorrealistas en WebP — se deja este
+> ADR como historial de por qué existieron en primer lugar.
+
 **Contexto:** Se pidió una experiencia visual "estilo Amazon" (fondo
 blanco, producto centrado, alta calidad, sin marcas de agua).
 
@@ -357,3 +361,64 @@ que hoy no se pueden anticipar sin adivinar (mapeo de categorías externas,
 precio de costo vs. venta, formato real de la compatibilidad de
 vehículos). También si la importación deja de ser "el vendedor sube un
 archivo cuando quiere" y pasa a ser una sincronización recurrente.
+
+---
+
+## ADR-010 — Renders WebP de categoría en vez de ilustración SVG
+
+**Contexto:** ADR-005 dejó la ilustración SVG explícitamente como algo a
+reconsiderar cuando el listón visual subiera. Con la Guía Visual Oficial de
+RedAuto v1 (dirección de arte "Apple + Amazon": renders 3D fotorrealistas,
+fondo transparente, cámara y luz fijas por categoría), la ilustración plana
+ya no alcanza — pero los renders definitivos todavía no existen (se
+producen aparte, fuera de este repositorio). Esta ADR es sólo la
+infraestructura para recibirlos, no los assets en sí.
+
+**Decisión:** `js/ui/productArt.js` se elimina; `js/ui/categoryArt.js` lo
+reemplaza con un `<img>` de `srcset` (256w/512w) apuntando a
+`assets/category-art/<id>-<ancho>.webp`. Si el archivo de una categoría no
+existe o falla al cargar, un único listener de documento (fase de captura,
+ver el módulo — el evento `error` de `<img>` no burbujea) lo reemplaza en
+el momento por el ícono de línea de esa categoría, el mismo que ya usa la
+grilla de categorías de Inicio. `assets/category-art/` se creó vacía, con
+sólo un `README.md` documentando los 16 nombres de archivo exactos que
+espera y la especificación de producción — deliberadamente sin imágenes de
+prueba ni placeholders.
+
+**Alternativas consideradas:**
+- *Generar placeholders o imágenes de prueba ahora.* Se pidió explícitamente
+  no hacerlo — un placeholder walk-back después es más trabajo que dejar el
+  fallback a ícono, que ya es honesto sobre "no hay render todavía" en vez
+  de mostrar un relleno gris genérico.
+- *Mantener las ilustraciones SVG como fallback intermedio* (en vez de caer
+  directo al ícono) mientras se producen los renders. Se descartó: mantener
+  dos sistemas de arte en paralelo (SVG detallado + WebP) sólo para una
+  transición temporal no vale el costo — el ícono de línea ya existe, no
+  cuesta nada mantenerlo, y es exactamente lo que ADR-005 preveía como
+  destino del fallback.
+- *`cache.addAll()` único incluyendo los WebP de categoría.* Descartado:
+  `cache.addAll()` es atómico — un solo archivo faltante (los 16 no existen
+  todavía) tumba la instalación completa del service worker, rompiendo el
+  offline de toda la app por un asset que ni siquiera se está usando aún.
+
+**Consecuencias:**
+- Cero cambio de comportamiento visible hoy: sin renders reales, todas las
+  categorías muestran su ícono de línea — el mismo resultado que mostraría
+  cualquier categoría nueva sin ilustración bajo el sistema anterior.
+- Agregar un render definitivo es soltar el archivo con el nombre correcto
+  en `assets/category-art/` y subir `CACHE_VERSION` en `sw.js` — cero
+  cambios de código.
+- El service worker intenta precachear los 16 WebP en cada instalación y
+  falla en silencio mientras no existan (ver `sw.js`, `CATEGORY_ART_URLS`);
+  esto es ruido esperado, no un error a investigar.
+- `sw.js` mantiene su propia lista de ids de categoría en paralelo a
+  `js/data/categories.js` porque es un script clásico, no un módulo, y no
+  puede importar el archivo real — el mismo compromiso que ya existe con
+  cada ruta de `PRECACHE_URLS`.
+
+**Cuándo reconsiderar:** si el número de categorías empieza a cambiar con
+frecuencia, vale la pena evaluar servir `CATEGORY_ART_URLS` desde un JSON
+generado en build en vez de una lista a mano en `sw.js`. Y, por supuesto,
+en cuanto lleguen los primeros renders reales — ahí toca subir los
+archivos y verificar visualmente contra el checklist de consistencia de la
+Guía Visual antes de darlos por buenos en producción.

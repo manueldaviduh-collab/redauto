@@ -556,18 +556,19 @@ img, svg { display: block; max-width: 100%; }
   background: #ffffff;
   isolation: isolate;
 }
-.product-tile::before {
-  content: ''; position: absolute; left: 50%; bottom: 9%;
-  width: 54%; height: 12%; transform: translateX(-50%);
-  background: radial-gradient(ellipse at center, rgba(20,20,22,0.16), transparent 72%);
-  z-index: 0;
-}
-.product-art__svg { position: relative; z-index: 1; width: 66%; height: 66%; }
-.product-tile--photo::before { content: none; }
+/* .category-art es el render WebP de categoría (o su fallback a ícono) que
+   sustituye una foto real ausente — ver js/ui/categoryArt.js. La
+   ilustración SVG que reemplaza no traía sombra propia, por eso el tile
+   dibujaba una sombra sintética con ::before; los renders ya incluyen su
+   propia sombra de contacto (Guía Visual Oficial de RedAuto), así que esa
+   regla ya no hace falta. */
+.category-art { position: relative; z-index: 1; width: 66%; height: 66%; object-fit: contain; }
+.category-art--fallback { display: flex; align-items: center; justify-content: center; color: var(--color-red); }
+.category-art--fallback svg { width: 100%; height: 100%; }
 .product-tile--photo img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; }
-.product-row__media .product-art__svg,
-.cart-row__media .product-art__svg { width: 76%; height: 76%; }
-.product-detail__media .product-art__svg { width: 52%; height: 52%; }
+.product-row__media .category-art,
+.cart-row__media .category-art { width: 76%; height: 76%; }
+.product-detail__media .category-art { width: 52%; height: 52%; }
 
 .badge--discount {
   position: absolute; top: 8px; left: 8px;
