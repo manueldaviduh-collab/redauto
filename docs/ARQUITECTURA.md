@@ -480,17 +480,21 @@ papá del fundador está diseñado para responder primero.
 
 ## 15. Verificación y calidad
 
-No hay suite de tests automatizados todavía (ni unitarios ni end-to-end
-persistidos en el repo). La verificación actual es manual: se levanta un
-servidor estático y se recorren los flujos con Chromium vía Playwright
-durante el desarrollo. Esto es razonable para el tamaño y la velocidad de
-cambio actuales del proyecto, pero es deuda técnica real: en cuanto exista
-un backend y más de una persona tocando el código a la vez, la ausencia de
-tests automatizados (sobre todo del flujo de checkout y del panel de
-vendedor) se vuelve el primer lugar donde algo se rompe sin que nadie se
-dé cuenta. Recomendación concreta para la Etapa 1 del roadmap: al menos
-tests end-to-end de humo (Playwright) para login → buscar → agregar al
-carrito → checkout, y para alta de producto en el panel de vendedor.
+**✅ Suite de humo end-to-end persistida** en [`tests/`](../tests/)
+(Playwright, ver [`tests/README.md`](../tests/README.md) para cómo
+correrla) — cubre los dos caminos críticos identificados: `comprador.spec.js`
+(registro → buscar → agregar al carrito → checkout, contra el backend real)
+y `vendedor.spec.js` (registro de tienda → alta de producto en el panel).
+Corre contra Postgres + `server/` reales, nunca contra datos de muestra —
+cada corrida crea sus propios usuarios/tienda/producto con sufijo
+aleatorio, así que es segura de repetir sin resetear nada.
+
+Sigue sin haber tests unitarios (de `services/*.js` o de las rutas de
+`server/`) — la suite de humo cubre el flujo completo pero no reemplaza
+verificar lógica de negocio aislada (cálculo de precios, filtros de
+búsqueda, validación de compatibilidad). Vale la pena sumarlos en cuanto
+esa lógica empiece a cambiar seguido o a fallar de formas que un test E2E
+tarda en detectar.
 
 ## 16. PWA (instalable en el Home Screen)
 

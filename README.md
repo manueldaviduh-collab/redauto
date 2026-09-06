@@ -77,6 +77,16 @@ Para simular un teléfono, usa las herramientas de desarrollador del
 navegador (375–430px de ancho). El layout también responde en
 tablet/escritorio (sidebar de navegación desde 1024px).
 
+### Tests automatizados
+
+Suite de humo end-to-end (Playwright) del camino crítico — registro →
+buscar → carrito → checkout, y alta de producto en el panel de vendedor —
+contra el backend y Postgres reales. Ver [`tests/README.md`](tests/README.md).
+
+```bash
+cd tests && npm install && npm test
+```
+
 ### Cómo crear tu cuenta y tu tienda
 
 No hay cuentas de demostración — nunca existieron en el backend real, y ya

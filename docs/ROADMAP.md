@@ -103,14 +103,12 @@ personalmente, sin que el fundador tenga que cargar cada catálogo a mano.
   con borrar/reordenar) — ver `ARQUITECTURA.md` §9.
 
 **Qué falta todavía dentro de esta etapa:**
-- Tests de humo automatizados (Playwright) para el flujo crítico: login →
+- ✅ Tests de humo automatizados (Playwright) para el flujo crítico: login →
   buscar → agregar al carrito → checkout, y alta de producto en el panel
-  de vendedor — ver `ARQUITECTURA.md` §15. Hoy la verificación de este
-  backend se hizo con scripts de Playwright puntuales durante el
-  desarrollo, no persistidos como suite en el repo. A partir de aquí hay
-  más de un cambio por semana tocando el mismo código; sin una suite
-  real, algo se rompe sin que nadie lo note hasta que un usuario real se
-  queja.
+  de vendedor — ver `tests/` y `ARQUITECTURA.md` §15. Antes la verificación
+  de este backend se hacía con scripts de Playwright puntuales durante el
+  desarrollo, sin persistir como suite en el repo; ahora corre con
+  `npm test` desde `tests/` contra Postgres + `server/` reales.
 - ✅ Desplegado y alcanzable por usuarios reales fuera de esta sandbox de
   desarrollo (Railway para `server/` + Postgres, Vercel para el frontend
   — ver `server/README.md`, sección de despliegue).
