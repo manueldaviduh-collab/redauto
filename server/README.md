@@ -288,8 +288,15 @@ importación por Excel como la subida de fotos corren en memoria (nunca
 escriben el archivo subido a disco) — cada foto además se verifica contra
 el producto de la tienda dueña antes de subirla o borrarla.
 
+También está: **panel de administración con interfaz** (`#/admin`, ver
+"Panel de administración" arriba) para aprobar/rechazar tiendas sin SQL —
+sigue revalidando el rol `admin` del lado del servidor en cada acción — y
+**límite de intentos de login** (`express-rate-limit`, 10 intentos por IP
+cada 15 minutos en `POST /api/auth/login`). Si despliegas detrás de un
+proxy distinto al que ya asume `app.set('trust proxy', 1)` (Railway/Render
+son de un solo salto), revisa ese valor o el límite terminará contando a
+todos los usuarios como una sola IP.
+
 Falta antes de un uso con más volumen/sensibilidad (ver
-`docs/ARQUITECTURA.md` §8 y `docs/ROADMAP.md`): límite de intentos de
-login (rate limiting), rotación/expiración más corta de tokens si hace
-falta, un panel de administración con interfaz para aprobar tiendas (hoy es
-SQL/API directo — funcional, pero manual).
+`docs/ARQUITECTURA.md` §8 y `docs/ROADMAP.md`): rotación/expiración más
+corta de tokens si hace falta.

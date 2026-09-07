@@ -295,12 +295,19 @@ automatizarlo (subida de documentos, historial de revisión) es
 `store_verification_requests` en `BASE_DE_DATOS.md` §4.1, todavía
 objetivo.
 
+**✅ Límite de intentos de login (rate limiting).** `POST /api/auth/login`
+está detrás de `express-rate-limit`: 10 intentos por IP cada 15 minutos
+(`server/src/routes/auth.js`). No bloquea por correo — bloquear por correo
+dejaría a la propia víctima de un ataque sin poder entrar — sólo frena
+cuántos intentos puede probar una misma IP. `app.set('trust proxy', 1)`
+en `server/src/index.js` es necesario para que esto cuente la IP real del
+cliente y no la del proxy de Railway (u otro PaaS) que queda por delante.
+
 **Lo que falta antes de un volumen/sensibilidad mayores** (ver
-`server/README.md`, sección de seguridad, y `ROADMAP.md`): límite de
-intentos de login (rate limiting). Row Level Security (RLS) de Postgres
-sigue siendo una capa adicional razonable si en algún momento se migra a
-Supabase o se agregan más roles/endpoints donde sea fácil olvidarse de un
-`if` de autorización en el código de la API.
+`ROADMAP.md`): Row Level Security (RLS) de Postgres sigue siendo una capa
+adicional razonable si en algún momento se migra a Supabase o se agregan
+más roles/endpoints donde sea fácil olvidarse de un `if` de autorización
+en el código de la API.
 
 ## 9. Almacenamiento de imágenes
 

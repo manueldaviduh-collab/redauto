@@ -9,6 +9,17 @@ momento de pasar a la siguiente.
 
 ## Etapa 0 — Piloto cerrado con tiendas reales (las tiendas del papá)
 
+**Nota (superada por la implementación real):** esta sección describe el
+plan original, escrito antes de que existiera `server/`. Para cuando el
+backend real llegó (Etapa 1, más abajo), se adelantaron piezas que acá se
+habían puesto explícitamente "fuera de esta etapa" — self-service de alta
+de tiendas y pedidos reales en base de datos, no sólo el catálogo — porque
+no costaba más construirlas bien desde el principio que construir una
+versión manual para descartar después. En la práctica, arrancar el piloto
+hoy usa el flujo self-service real (`server/README.md`, "Cómo cargar tu
+propia tienda") en vez de cargar la tienda a mano por SQL. El objetivo y
+las tres preguntas de validación de abajo siguen vigentes tal cual.
+
 **Objetivo:** validar tres cosas con el menor esfuerzo posible, antes de
 construir nada más:
 1. ¿Un comprador real encuentra el repuesto correcto y completa una compra
@@ -18,36 +29,32 @@ construir nada más:
 3. ¿El chat/las fichas de producto resuelven dudas reales, o los
    compradores igual terminan escribiendo por WhatsApp?
 
-**Requisito técnico antes de arrancar (no es opcional):** mover
-`products`, `stores` y las cuentas de usuario a un backend real
-compartido — **✅ ya resuelto**, ver `server/` y `ARQUITECTURA.md` §7–§8.
-Con `localStorage` como estaba antes, el catálogo que el papá del
-fundador editara en su teléfono no lo hubiera visto ningún comprador en
-el suyo; ese bloqueador #1 (`ARQUITECTURA.md` §11) ya no aplica al
-catálogo. Sigue aplicando a `orders`: el historial de pedidos todavía es
-por navegador (ver `BASE_DE_DATOS.md` §6, paso 1) — no bloquea que el
-papá del fundador cargue su tienda y sus productos reales hoy mismo, pero
-sí falta antes de que el flujo de compra completo (no sólo el catálogo)
-esté centralizado.
+**Requisito técnico antes de arrancar — ✅ ya resuelto, y más completo de
+lo que este plan original pedía:** `products`, `stores`, cuentas de
+usuario **y `orders`** ya viven en el backend real compartido (ver
+`server/` y `ARQUITECTURA.md` §7–§8) — el historial de pedidos ya no es
+por navegador, así que el flujo de compra completo, no sólo el catálogo,
+está centralizado desde el primer pedido real.
 
 **Alcance de esta etapa:**
-- Un puñado de tiendas reales (las del papá + quizás 1–2 más), cargadas a
-  mano (por el fundador, no self-service todavía) en la base de datos.
+- Un puñado de tiendas reales (las del papá + quizás 1–2 más), dadas de
+  alta por el flujo self-service real (`server/README.md`, "Cómo cargar
+  tu propia tienda") — cada una queda pendiente de verificación hasta que
+  el fundador la aprueba desde `#/admin`.
 - Compradores reales (familia, clientes existentes de esas tiendas,
   círculo cercano), no adquisición pública todavía.
 - El pago se sigue coordinando por fuera de la app (transferencia, pago
   móvil, efectivo contra entrega) — el pedido queda en la app como
-  registro (`payment_status: pendiente` → un admin lo marca `pagado` a
-  mano tras confirmar el cobro). Esto no es hacer trampa con la
-  transparencia (ver `PRINCIPIOS.md` §4): se sigue mostrando honestamente
-  como "pendiente de confirmación", solo que ahora ese estado vive en un
-  backend real en vez de en el navegador de cada quien.
-- Verificación de tienda: manual, hecha por el fundador (no hace falta
-  automatizar KYC para 2–5 tiendas de confianza).
+  registro (`pendiente_pago` → un vendedor lo marca `pagado` a mano tras
+  confirmar el cobro). Esto no es hacer trampa con la transparencia (ver
+  `PRINCIPIOS.md` §4): se sigue mostrando honestamente como "pendiente de
+  confirmación", solo que ahora ese estado vive en un backend real en vez
+  de en el navegador de cada quien.
+- Verificación de tienda: manual, hecha por el fundador desde `#/admin`
+  (no hace falta automatizar KYC para 2–5 tiendas de confianza).
 
-**Explícitamente fuera de esta etapa:** self-service de alta de tiendas,
-pasarela de pago real, búsqueda a gran escala, apps nativas, marketing
-pago.
+**Explícitamente fuera de esta etapa:** pasarela de pago real, búsqueda a
+gran escala, apps nativas, marketing pago.
 
 **Señal de pasar a la Etapa 1:** las tres preguntas de arriba tienen
 respuesta — sobre todo la 1 y la 2. Si el dueño de la tienda no usa el

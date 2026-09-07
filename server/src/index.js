@@ -10,6 +10,12 @@ import { ordersRouter } from './routes/orders.js';
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Railway (y la mayoría de los PaaS) ponen esta API detrás de un único
+// proxy inverso — sin esto, req.ip siempre sería la IP del proxy, no la
+// del cliente real, y el límite de intentos de login (ver routes/auth.js)
+// terminaría contando a todos los usuarios como uno solo.
+app.set('trust proxy', 1);
+
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json());
 

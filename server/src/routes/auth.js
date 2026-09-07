@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { signToken, requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
@@ -7,6 +8,18 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 export const authRouter = Router();
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
+
+// Límite de intentos de login por IP — gap documentado en server/README.md
+// ("Seguridad") desde antes de tener tiendas reales. No bloquea el correo
+// (eso dejaría a la propia víctima sin poder entrar), sólo frena cuántos
+// intentos puede probar una misma IP en la ventana.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos de inicio de sesión. Espera unos minutos e intenta de nuevo.' },
+});
 
 function publicUser(row) {
   return { id: row.id, name: row.name, email: row.email, phone: row.phone, city: row.city, role: row.role };
@@ -133,7 +146,7 @@ authRouter.post('/register', async (req, res) => {
   }
 });
 
-authRouter.post('/login', asyncHandler(async (req, res) => {
+authRouter.post('/login', loginLimiter, asyncHandler(async (req, res) => {
   const { email, password } = req.body || {};
   const emailNorm = String(email || '').toLowerCase().trim();
 
