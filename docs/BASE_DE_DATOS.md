@@ -22,7 +22,7 @@ verificó al implementar la primera porción.
 | Favoritos (productos y tiendas) | `localStorage` | Simulado — no bloquea negocio, ver §6 |
 | Garage de "Mis Vehículos" | `localStorage` | Simulado |
 | Notificaciones | `localStorage` + datos de muestra | Simulado |
-| Reseñas | Generadas en memoria (muestra) | Simulado |
+| Reseñas de producto | PostgreSQL (`server/`) | Real — ligada a una compra pagada (`order_id`), agregado en vivo (AVG/COUNT), sin caché todavía |
 
 La navegación de compra (Home/Buscar/Tiendas) muestra **sólo** tiendas y
 productos reales de Postgres, verificados y sin catálogo de demostración
@@ -34,7 +34,7 @@ navegación se degrada a "sin resultados", no a datos ficticios.
 
 ## 2. Esquema implementado hoy (PostgreSQL, `server/src/schema.sql`)
 
-Nueve tablas — el subconjunto necesario para "una empresa real se
+Diez tablas — el subconjunto necesario para "una empresa real se
 registra, carga su inventario completo (a mano o por Excel, con fotos
 reales) con compatibilidad de vehículos real, un admin la aprueba antes de
 que sea pública, y un comprador completa un pedido real que persiste".
@@ -132,6 +132,20 @@ order_items                  -- una fila por línea de carrito; store_id
 ├─ qty                           int CHECK > 0
 └─ created_at                       timestamptz
 INDEX (order_id), INDEX (store_id)
+
+reviews                     -- reseña ligada a una compra pagada; store_id
+├─ id            uuid PK        existe para una futura reseña de tienda
+├─ user_id         FK → users.id  (no implementada — sólo producto por ahora)
+├─ order_id           FK → orders.id
+├─ product_id NULL       FK → products.id
+├─ store_id NULL            FK → stores.id
+├─ rating                      smallint CHECK (1-5)
+├─ comment                       text NULL
+└─ created_at                        timestamptz
+CHECK (product_id IS NOT NULL OR store_id IS NOT NULL)
+UNIQUE (order_id, product_id) WHERE product_id IS NOT NULL  -- 1 reseña por
+                                                              -- producto por pedido
+INDEX (product_id), INDEX (store_id)
 ```
 
 ## 3. Lo que todavía vive en `localStorage`
@@ -283,10 +297,10 @@ INDEX (buyer_user_id)                         └─ created_at
 favorites_products (user_id, product_id, created_at)   PK (user_id, product_id)   -- objetivo,
 favorites_stores    (user_id, store_id,   created_at)   PK (user_id, store_id)     -- no implementado
 
-reviews                                -- objetivo, no implementado
-├─ id          uuid PK
-├─ user_id       FK → users.id
-├─ order_id        FK → orders.id            -- reseña ligada a una compra verificada
+reviews                                ✅ implementada (sólo reseñas de producto;
+├─ id          uuid PK                    store_id existe en la columna pero
+├─ user_id       FK → users.id             ningún endpoint la usa todavía)
+├─ order_id        FK → orders.id            -- reseña ligada a una compra pagada
 ├─ product_id NULL   FK → products.id          -- una de las dos, no ambas NULL
 ├─ store_id NULL       FK → stores.id
 ├─ rating                 smallint (1-5)
@@ -391,16 +405,23 @@ reutilizando el endpoint de subida individual ya construido arriba:
   compatibilidad ya es real y obligatoria al cargar un producto, pero
   "Buscar repuestos para mi auto" en `home.js` todavía filtra sobre el
   catálogo combinado en memoria, no contra este índice).
-- **Reseñas ligadas a `order_id`** (objetivo). Para que "reseña
-  verificada" signifique algo real (solo quien compró puede reseñar), no
+- **Reseñas ligadas a `order_id` — ✅ implementada.** `POST
+  /api/products/:id/reviews` valida server-side que el usuario tenga un
+  `order` propio con `status = 'pagado'` y una línea de ese producto sin
+  reseñar todavía (`findReviewableOrderId()` en
+  `server/src/routes/products.js`) — nunca confía en que el cliente ya
+  sepa si puede reseñar. Así "reseña verificada" significa algo real, no
   un campo de texto libre sin respaldo.
-- **`rating_cached` / `reviews_count_cached` en `stores`** (objetivo).
-  Denormalizados a propósito: recalcular el promedio de reseñas en cada
-  carga de la pantalla de tienda es caro sin necesidad. Se recalculan
-  async cuando entra una reseña nueva, no en cada lectura. Hoy
-  `server/src/routes/stores.js` devuelve honestamente `rating: 0`,
-  `reviewsCount: 0`, etc. para tiendas reales — nunca un número inventado
-  — hasta que exista el flujo real de reseñas.
+- **Agregado en vivo, no `rating_cached`/`reviews_count_cached` — decisión
+  v1.** `withExtras()` (`server/src/routes/products.js`) calcula
+  `AVG(rating)`/`COUNT(*)` sobre `reviews` en cada lectura de producto, en
+  vez de mantener columnas denormalizadas recalculadas async. Es más
+  simple y el volumen del piloto no lo justifica todavía; se vuelve a
+  evaluar si el `JOIN` empieza a pesar con más reseñas por producto. Las
+  reseñas de **tienda** siguen sin implementar (`reviews.store_id` existe
+  en la columna pero ningún endpoint la usa) — `server/src/routes/stores.js`
+  sigue devolviendo honestamente `rating: 0`, `reviewsCount: 0` para
+  tiendas reales, nunca un número inventado.
 
 ## 6. Plan de migración de lo que falta
 
@@ -416,8 +437,10 @@ resto, cada uno desbloquea al siguiente:
    tres pueden quedarse en `localStorage` más tiempo sin bloquear nada de
    negocio (no impiden comprar ni vender); se migran cuando el valor de
    "mis favoritos me siguen entre dispositivos" lo justifique.
-3. **`reviews`** — cuando el flujo de reseñas de compradores reales
-   reemplace a los datos de muestra actuales (ver `ROADMAP.md`, Etapa 2).
+3. **`reviews` — ✅ hecho.** Reseñas de producto reales, ligadas a una
+   compra pagada (ver §5) — reemplazó a `js/data/reviews.js`, que generaba
+   reseñas de muestra deterministas. Reseñas de **tienda** (`store_id`)
+   siguen sin implementar, ver §5.
    **`store_verification_requests`** — la aprobación de tiendas ya es real
    (`stores.verification_status`, ver §4.1 y `server/README.md`), esta
    tabla es para cuando ese flujo necesite subida de documentos e historial

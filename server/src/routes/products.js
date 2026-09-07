@@ -22,7 +22,7 @@ const toDollars = (cents) => (cents == null ? null : Number(cents) / 100);
 // Misma forma que ya consume el frontend (ver js/services/productService.js
 // y js/data/products.js) para que components.js/screens/*.js no necesiten
 // saber si un producto vino del catálogo local o del backend real.
-function toProductViewModel(row, { compatibility = [], images = [] } = {}) {
+function toProductViewModel(row, { compatibility = [], images = [], rating = 0, reviewsCount = 0 } = {}) {
   return {
     id: row.id,
     name: row.name,
@@ -34,10 +34,10 @@ function toProductViewModel(row, { compatibility = [], images = [] } = {}) {
     availability: row.availability,
     stock: row.stock,
     storeId: row.store_id,
-    // Sin reseñas reales todavía (ver docs/ROADMAP.md, Etapa 2) — se
-    // muestra en 0, nunca un número inventado.
-    rating: row.rating != null ? Number(row.rating) : 0,
-    reviewsCount: row.reviews_count ?? 0,
+    // Promedio/conteo real de la tabla reviews (ver withExtras()) — nunca
+    // un número inventado; un producto sin reseñas todavía muestra 0.
+    rating,
+    reviewsCount,
     sku: row.sku || '',
     description: row.description || '',
     internalLocation: row.internal_location || '',
@@ -64,17 +64,58 @@ function toCompatibilityViewModel(row) {
 }
 
 async function withExtras(row) {
-  const [compat, images] = await Promise.all([
+  const [compat, images, reviewStats] = await Promise.all([
     pool.query(
       'SELECT vehicle_brand, vehicle_model, year_from, year_to, engine, vehicle_trim FROM product_compatibility WHERE product_id = $1 ORDER BY created_at',
       [row.id]
     ),
     pool.query('SELECT url FROM product_images WHERE product_id = $1 ORDER BY position', [row.id]),
+    pool.query('SELECT COUNT(*)::int AS count, COALESCE(AVG(rating), 0) AS avg FROM reviews WHERE product_id = $1', [row.id]),
   ]);
   return toProductViewModel(row, {
     compatibility: compat.rows.map(toCompatibilityViewModel),
     images: images.rows.map((r) => r.url),
+    rating: Number(reviewStats.rows[0].avg),
+    reviewsCount: reviewStats.rows[0].count,
   });
+}
+
+// "Carlos M." en vez del nombre completo — mismo criterio visual que ya
+// tenían las reseñas de muestra (js/data/reviews.js), ahora con datos
+// reales: no hace falta exponer el apellido completo de otro usuario en
+// una ficha de producto pública.
+function authorLabel(fullName) {
+  const parts = String(fullName || '').trim().split(/\s+/);
+  if (parts.length < 2) return parts[0] || 'Comprador';
+  return `${parts[0]} ${parts[1][0].toUpperCase()}.`;
+}
+
+function toReviewViewModel(row) {
+  return {
+    id: row.id,
+    author: authorLabel(row.user_name),
+    rating: Number(row.rating),
+    comment: row.comment || '',
+    createdAt: row.created_at,
+  };
+}
+
+// Un pedido "cuenta" para reseñar cuando ya está pagado (ver
+// docs/BASE_DE_DATOS.md §5 — reseña ligada a una compra verificada, no un
+// campo de texto libre sin respaldo) y todavía tiene la línea de este
+// producto (order_items.product_id puede quedar NULL si el producto se
+// borró después — ver order_items en schema.sql).
+async function findReviewableOrderId(userId, productId) {
+  const result = await pool.query(
+    `SELECT o.id FROM orders o
+     JOIN order_items oi ON oi.order_id = o.id
+     WHERE o.buyer_user_id = $1 AND oi.product_id = $2 AND o.status = 'pagado'
+       AND NOT EXISTS (SELECT 1 FROM reviews r WHERE r.order_id = o.id AND r.product_id = $2)
+     ORDER BY o.created_at ASC
+     LIMIT 1`,
+    [userId, productId]
+  );
+  return result.rows[0]?.id || null;
 }
 
 async function getOwnStoreId(userId) {
@@ -159,6 +200,54 @@ productsRouter.get('/:id', asyncHandler(async (req, res) => {
   );
   if (!result.rows[0]) return res.status(404).json({ error: 'Producto no encontrado.' });
   res.json(await withExtras(result.rows[0]));
+}));
+
+// GET /api/products/:id/reviews — reseñas reales del producto, más
+// recientes primero. Pública (igual que la ficha del producto): no hace
+// falta estar logueado para leerlas.
+productsRouter.get('/:id/reviews', asyncHandler(async (req, res) => {
+  const result = await pool.query(
+    `SELECT r.id, r.rating, r.comment, r.created_at, u.name AS user_name
+     FROM reviews r JOIN users u ON u.id = r.user_id
+     WHERE r.product_id = $1 ORDER BY r.created_at DESC`,
+    [req.params.id]
+  );
+  res.json(result.rows.map(toReviewViewModel));
+}));
+
+// GET /api/products/:id/reviews/eligibility — si el comprador autenticado
+// tiene una compra pagada de este producto que todavía no reseñó. El
+// frontend usa esto para mostrar (o no) el formulario de "escribir una
+// reseña" — nunca confía en que el cliente ya sepa si puede reseñar.
+productsRouter.get('/:id/reviews/eligibility', requireAuth, asyncHandler(async (req, res) => {
+  const orderId = await findReviewableOrderId(req.auth.id, req.params.id);
+  res.json({ canReview: !!orderId, orderId });
+}));
+
+// POST /api/products/:id/reviews — crea la reseña. orderId lo manda el
+// cliente pero se valida server-side contra findReviewableOrderId() (mismo
+// criterio que el resto de la API: nunca confiar en el body para decidir
+// si algo es válido) — así no hay forma de reseñar sin haber pagado, ni de
+// reseñar dos veces desde el mismo pedido.
+productsRouter.post('/:id/reviews', requireAuth, asyncHandler(async (req, res) => {
+  const { rating, comment } = req.body || {};
+  const ratingNum = Number(rating);
+  if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+    return res.status(400).json({ error: 'La calificación debe ser un número entero entre 1 y 5.' });
+  }
+  const orderId = await findReviewableOrderId(req.auth.id, req.params.id);
+  if (!orderId) {
+    return res.status(403).json({ error: 'Solo puedes reseñar productos que ya compraste y pagaste, una vez por pedido.' });
+  }
+  const result = await pool.query(
+    `WITH inserted AS (
+       INSERT INTO reviews (user_id, order_id, product_id, rating, comment)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id, rating, comment, created_at
+     )
+     SELECT inserted.*, u.name AS user_name FROM inserted JOIN users u ON u.id = inserted.user_id`,
+    [req.auth.id, orderId, req.params.id, ratingNum, comment ? String(comment).trim().slice(0, 1000) : null]
+  );
+  res.status(201).json(toReviewViewModel(result.rows[0]));
 }));
 
 // GET /api/products/mine/list — inventario completo de la tienda del

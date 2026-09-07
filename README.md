@@ -191,9 +191,9 @@ js/
   config.js            URL del backend (window.REDAUTO_API_URL, ver index.html)
   router.js           Router hash-based, mapea rutas -> pantallas, transición de entrada
   nav.js               navigate()/parseHash(), sin dependencias circulares
-  data/                Catálogo local fijo (categorías, vehículos, notificaciones/reseñas
+  data/                Catálogo local fijo (categorías, vehículos, notificaciones
                        de muestra) — ver services/*.js para qué ya es real
-    categories.js, vehicles.js, notifications.js, reviews.js, venezuelaStates.js
+    categories.js, vehicles.js, notifications.js, venezuelaStates.js
   services/            Capa de negocio — el único punto de acceso a los datos
     storage.js          Envoltorio sobre localStorage (namespacing + try/catch)
     api.js                Cliente HTTP hacia el backend real (fetch + JWT + errores)
@@ -206,6 +206,7 @@ js/
     favoritesService.js   Favoritos de productos y de tiendas (localStorage)
     authService.js         Cuenta y sesión reales contra el backend (JWT)
     orderService.js         Pedidos reales contra el backend (checkout, historial), sin pagos automatizados
+    reviewService.js         Reseñas reales de producto contra el backend, ligadas a una compra pagada
     sellerService.js         Panel de vendedor: productos, tienda, compatibilidad, import Excel y fotos reales
     notificationService.js   Centro de notificaciones (leído/no leído, localStorage)
     adminService.js           Panel de administración: listar tiendas por estado, aprobar/rechazar
@@ -250,7 +251,8 @@ llamada a un backend real, no debería tocar ninguna pantalla.
    unidades / 🔴 Agotado), opciones de entrega, descripción, compatibilidad,
    tienda vendedora con badge de verificación, botón **"Preguntar a la
    tienda"** (chat, ver abajo), selector de cantidad, agregar al carrito,
-   comprar ahora y reseñas de muestra.
+   comprar ahora y reseñas reales de compradores que ya pagaron (con
+   formulario para escribir la propia si aplica).
 6. **Tiendas verificadas** — listado con búsqueda por nombre/ciudad y perfil
    de tienda (cobertura, calificación, ventas, horario, tiempo de respuesta,
    entrega/retiro, catálogo completo, favorito ⭐), con "Ver catálogo" como
@@ -327,6 +329,11 @@ muestra):**
   subida a Cloudinary que las fotos de producto. Se ve en las tarjetas de
   tienda, en la ficha de producto y en el detalle de la tienda; sin logo
   todavía, se siguen mostrando las iniciales sobre el degradado de marca.
+- **Reseñas de producto reales**: sólo quien compró y pagó puede reseñar
+  un producto, una vez por pedido (`POST /api/products/:id/reviews`,
+  validado del lado del servidor). El rating y el conteo que muestra la
+  ficha de producto vienen de esas reseñas reales, nunca de datos de
+  muestra.
 - Navegación de compra (Inicio, Buscar, Tiendas, detalle de producto/
   tienda): muestra sólo tiendas/productos reales y **verificados** del
   backend — sin catálogo de muestra mezclado (ver `docs/DECISIONES.md`).
@@ -352,7 +359,7 @@ muestra):**
 - Importación masiva de fotos (ZIP o URLs por columna en el Excel): la
   subida de fotos una por una ya es real, pero cargar muchas de golpe sigue
   siendo sólo diseño (`docs/BASE_DE_DATOS.md` §4.1), a propósito.
-- Notificaciones y reseñas: datos de muestra fijos.
+- Notificaciones: datos de muestra fijos.
 - Chat "Preguntar a la tienda": las respuestas se generan en el cliente a
   partir de los datos reales del producto/tienda (no hay mensajería real ni
   un vendedor humano respondiendo). WhatsApp/llamada quedan como respaldo

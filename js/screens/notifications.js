@@ -1,5 +1,5 @@
 import { icon } from '../ui/icons.js';
-import { escapeHtml, emptyState } from '../ui/components.js';
+import { escapeHtml, emptyState, relativeTime } from '../ui/components.js';
 import { notificationService } from '../services/notificationService.js';
 
 const TYPE_ICON = {
@@ -54,15 +54,4 @@ function notifRow(n) {
     </div>
     ${n.read ? '' : '<span class="notif-feed__dot" aria-hidden="true"></span>'}
   </article>`;
-}
-
-function relativeTime(iso) {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const hours = Math.floor(diffMs / 3600000);
-  if (hours < 1) return 'Hace un momento';
-  if (hours < 24) return `Hace ${hours} h`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return 'Ayer';
-  if (days < 7) return `Hace ${days} días`;
-  return new Date(iso).toLocaleDateString('es-VE', { day: 'numeric', month: 'short' });
 }

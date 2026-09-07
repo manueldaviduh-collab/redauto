@@ -66,13 +66,13 @@ formulario de registro (ver §12).
 | Base de datos | PostgreSQL | NoSQL (Firestore/Mongo) — descartado, el dominio es relacional (ver `DECISIONES.md`, ADR-007) |
 | Servidor API | Node.js + Express | Mismo lenguaje que el frontend (JS), sin capa nueva que aprender; suficiente para el número de endpoints actual (auth + products + stores) |
 | Autenticación | JWT propio (`jsonwebtoken`) + contraseñas con `bcryptjs` | Se evaluó Supabase Auth (evita reconstruir esta pieza) pero se optó por control total del esquema de datos desde el día uno del piloto — ver `DECISIONES.md`, ADR-007. Sigue siendo una migración razonable más adelante si el volumen de auth lo justifica |
-| Cliente de base de datos | `pg` (node-postgres), sin ORM | El esquema actual (9 tablas) no justifica todavía la indirección de un ORM (Prisma/Drizzle) — SQL directo en `server/src/routes/*.js` es más fácil de auditar a este tamaño |
+| Cliente de base de datos | `pg` (node-postgres), sin ORM | El esquema actual (10 tablas) no justifica todavía la indirección de un ORM (Prisma/Drizzle) — SQL directo en `server/src/routes/*.js` es más fácil de auditar a este tamaño |
 | Hosting backend (para desplegar, ver `server/README.md`) | Railway o Render (Node + Postgres administrado en el mismo lugar), o Postgres en Supabase/Neon + servidor en cualquier otro proveedor | — |
 | Hosting frontend | Cualquier hosting estático (Netlify, Vercel, GitHub Pages, S3+CDN) — el frontend sigue siendo estático incluso con backend real | — |
 
 Lo que el backend **todavía no cubre** (carrito antes de comprar, pagos
-automatizados, reseñas) sigue resuelto del lado del cliente o simulado —
-ver §7, §9 y `ROADMAP.md` para el orden en que se agrega cada pieza.
+automatizados) sigue resuelto del lado del cliente o simulado — ver §7, §9
+y `ROADMAP.md` para el orden en que se agrega cada pieza.
 
 ## 3. Las capas y la regla de dependencia
 
@@ -136,7 +136,7 @@ js/
 
   data/                Catálogos y semillas (arrays estáticos en memoria) —
                        sólo lo que sigue simulado, ver §10
-    categories.js, vehicles.js, notifications.js, reviews.js
+    categories.js, vehicles.js, notifications.js
 
   services/            Toda la lógica de negocio; contratos `async`
     storage.js          Envoltorio sobre localStorage (namespace "redauto_"
@@ -152,6 +152,8 @@ js/
                           namespaces distintos) + FAVORITES_CHANGED_EVENT
     authService.js         Sesión real (JWT) + registro (ver §8, Autenticación)
     orderService.js         Pedidos reales (server/) — checkout, historial, sin pagos automatizados
+    reviewService.js         Reseñas reales de producto (server/) — ligadas a
+                             una compra pagada
     sellerService.js         Agrega datos para el panel de vendedor
     notificationService.js   Centro de notificaciones (leído/no leído)
 
@@ -219,23 +221,23 @@ frontend con un backend real, ver §10.)*
 ## 7. Base de datos
 
 **Ya existe una base de datos real** (PostgreSQL, esquema en
-[`server/src/schema.sql`](../server/src/schema.sql)) con nueve tablas:
+[`server/src/schema.sql`](../server/src/schema.sql)) con diez tablas:
 `users`, `categories`, `stores`, `store_categories`, `products`,
-`product_compatibility`, `product_images`, `orders` y `order_items` — el
-subconjunto necesario para que una tienda real se registre (con toda su
-info fiscal/de contacto), quede pendiente de verificación, cargue su
-inventario completo —a mano o por Excel, con fotos reales— con
-compatibilidad de vehículos real, y para que un comprador complete un
+`product_compatibility`, `product_images`, `orders`, `order_items` y
+`reviews` — el subconjunto necesario para que una tienda real se registre
+(con toda su info fiscal/de contacto), quede pendiente de verificación,
+cargue su inventario completo —a mano o por Excel, con fotos reales— con
+compatibilidad de vehículos real, para que un comprador complete un
 pedido real que persiste (precio y nombre congelados al momento de la
-compra). Sigue siendo más chica que el esquema objetivo completo (sin
-`reviews`, `vehicle_brands`/`vehicle_models` como catálogo cerrado, sin
-`subtotal_cents`/`shipping_cents`/`payment_method` separados en `orders`,
-etc.) porque cada tarea que la amplió tuvo un alcance acotado, no migró
-todo de una vez.
+compra), y reseñe los productos que ya pagó. Sigue siendo más chica que
+el esquema objetivo completo (sin `vehicle_brands`/`vehicle_models` como
+catálogo cerrado, sin `subtotal_cents`/`shipping_cents`/`payment_method`
+separados en `orders`, sin reseñas de tienda, etc.) porque cada tarea que
+la amplió tuvo un alcance acotado, no migró todo de una vez.
 
 Lo que **todavía no tiene tabla real** — carrito (antes de comprar,
-deliberadamente), favoritos, garage de vehículos, notificaciones, reseñas
-— sigue como arrays en `js/data/*.js` + `localStorage`, igual que antes.
+deliberadamente), favoritos, garage de vehículos, notificaciones — sigue
+como arrays en `js/data/*.js` + `localStorage`, igual que antes.
 
 Inventario completo de claves de `localStorage` que quedan, el esquema
 implementado hoy, el esquema objetivo completo en Postgres, y el plan de
@@ -445,12 +447,16 @@ quedan, en [`BASE_DE_DATOS.md` §3 y §6](./BASE_DE_DATOS.md). Resumen:
    habla contra `server/`. `cartService` se queda en `localStorage` — es el
    borrador antes de confirmar la compra, no el dato de negocio que había
    que centralizar.
-3. **`favorites_products` / `favorites_stores` / `user_vehicles`** — no
+3. **`reviews` (reseñas de producto) — ✅ hecho.** Ligadas a una compra
+   pagada (`order_id`), validado server-side; `reviewService` ya habla
+   contra `server/`, reemplazó a `js/data/reviews.js` (reseñas de muestra
+   deterministas).
+4. **`favorites_products` / `favorites_stores` / `user_vehicles`** — no
    bloquean negocio, se migran cuando el valor de "me siguen entre
    dispositivos" lo justifique.
-4. **`reviews` + `store_verification_requests`** — cuando el flujo de
-   reseñas y verificación de tiendas reales reemplace a los datos de
-   muestra actuales.
+5. **`store_verification_requests`** — cuando el flujo de verificación de
+   tiendas necesite subida de documentos e historial de revisión, en vez
+   de un solo campo que cambia un admin a mano.
 
 Cada paso mueve un `services/*.js` de `localStorage` a `fetch()` sin
 tocar las pantallas que lo consumen (§12) — se puede desplegar
@@ -482,12 +488,14 @@ papá del fundador está diseñado para responder primero.
 
 **✅ Suite de humo end-to-end persistida** en [`tests/`](../tests/)
 (Playwright, ver [`tests/README.md`](../tests/README.md) para cómo
-correrla) — cubre los dos caminos críticos identificados: `comprador.spec.js`
-(registro → buscar → agregar al carrito → checkout, contra el backend real)
-y `vendedor.spec.js` (registro de tienda → alta de producto en el panel).
-Corre contra Postgres + `server/` reales, nunca contra datos de muestra —
-cada corrida crea sus propios usuarios/tienda/producto con sufijo
-aleatorio, así que es segura de repetir sin resetear nada.
+correrla) — cubre los caminos críticos identificados: `comprador.spec.js`
+(registro → buscar → agregar al carrito → checkout, contra el backend real),
+`vendedor.spec.js` (registro de tienda → alta de producto en el panel) y
+`resenas.spec.js` (un comprador con un pedido pagado escribe una reseña
+real, verifica que persiste y que no se puede reseñar dos veces desde el
+mismo pedido). Corre contra Postgres + `server/` reales, nunca contra
+datos de muestra — cada corrida crea sus propios usuarios/tienda/producto
+con sufijo aleatorio, así que es segura de repetir sin resetear nada.
 
 Sigue sin haber tests unitarios (de `services/*.js` o de las rutas de
 `server/`) — la suite de humo cubre el flujo completo pero no reemplaza

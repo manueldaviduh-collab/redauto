@@ -196,6 +196,32 @@ CREATE TABLE IF NOT EXISTS order_items (
 CREATE INDEX IF NOT EXISTS order_items_order_id_idx ON order_items (order_id);
 CREATE INDEX IF NOT EXISTS order_items_store_id_idx ON order_items (store_id);
 
+-- Reseñas reales, ligadas a una compra verificada: sólo se puede reseñar un
+-- producto que el usuario ya pagó (order_items.product_id de un order del
+-- propio buyer_user_id con status = 'pagado' — ver server/src/routes/products.js).
+-- `store_id` queda para una futura reseña a nivel de tienda (no del piloto
+-- todavía, por eso NULL); el CHECK exige que sea una cosa o la otra, nunca
+-- ninguna. El UNIQUE evita reseñar dos veces el mismo producto desde el
+-- mismo pedido (sí se puede reseñar de nuevo si se vuelve a comprar en un
+-- pedido distinto). v1 calcula rating/reviews_count en vivo con un COUNT/AVG
+-- (ver withExtras() en products.js) en vez de mantener columnas cacheadas en
+-- stores/products — es más simple y el volumen del piloto no lo justifica
+-- todavía (ver docs/DECISIONES.md).
+CREATE TABLE IF NOT EXISTS reviews (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  order_id    UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  product_id  UUID REFERENCES products(id) ON DELETE CASCADE,
+  store_id    UUID REFERENCES stores(id) ON DELETE CASCADE,
+  rating      SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment     TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (product_id IS NOT NULL OR store_id IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS reviews_product_id_idx ON reviews (product_id);
+CREATE INDEX IF NOT EXISTS reviews_store_id_idx ON reviews (store_id);
+CREATE UNIQUE INDEX IF NOT EXISTS reviews_order_product_idx ON reviews (order_id, product_id) WHERE product_id IS NOT NULL;
+
 -- Taxonomía real (idéntica a js/data/categories.js) — no es data de demo,
 -- es la estructura de categorías que la app necesita para funcionar.
 INSERT INTO categories (id, name, icon) VALUES

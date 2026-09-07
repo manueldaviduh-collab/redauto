@@ -117,12 +117,24 @@ function orderRow(order) {
     <div>
       <p class="order-row__id">#${shortOrderId(order.id)}</p>
       <p class="order-row__date">${order.date} · ${order.items.length} producto${order.items.length === 1 ? '' : 's'}</p>
+      <ul class="order-row__items">${order.items.map(orderItemRow).join('')}</ul>
     </div>
     <div class="order-row__side">
       ${orderStatusBadge(order.status)}
       <span class="order-row__total">$${order.total.toFixed(2)}</span>
     </div>
   </article>`;
+}
+
+// Enlaza a la ficha del producto (donde también se puede reseñar si ya se
+// pagó, ver js/screens/product.js) — productId puede quedar NULL si el
+// producto se borró después de la compra (ver order_items en schema.sql),
+// en ese caso el nombre congelado se muestra pero sin enlace.
+function orderItemRow(item) {
+  const label = `${item.qty}× ${escapeHtml(item.product.name)}`;
+  return item.productId
+    ? `<li><a href="#/producto/${item.productId}" class="order-row__item">${label}</a></li>`
+    : `<li class="order-row__item">${label}</li>`;
 }
 
 function initials(name) {

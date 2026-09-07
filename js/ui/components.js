@@ -37,6 +37,19 @@ export function shortOrderId(id) {
   return String(id || '').slice(0, 8).toUpperCase();
 }
 
+// Compartido entre notifications.js y product.js (reseñas) — mismo criterio
+// de "hace X" en ambos lados.
+export function relativeTime(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const hours = Math.floor(diffMs / 3600000);
+  if (hours < 1) return 'Hace un momento';
+  if (hours < 24) return `Hace ${hours} h`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'Ayer';
+  if (days < 7) return `Hace ${days} días`;
+  return new Date(iso).toLocaleDateString('es-VE', { day: 'numeric', month: 'short' });
+}
+
 export function whatsappLink(phone, message) {
   const digits = String(phone).replace(/\D/g, '');
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;

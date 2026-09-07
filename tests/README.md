@@ -14,6 +14,11 @@ mocks ni datos de muestra.
 - **`e2e/vendedor.spec.js`** — registro de una tienda nueva (queda
   `pendiente` de verificación, como en producción) → alta de un producto
   desde el panel de vendedor.
+- **`e2e/resenas.spec.js`** — un comprador con un pedido ya pagado escribe
+  una reseña real desde la ficha del producto, verificando que aparece,
+  que el resumen (estrella grande + conteo) se actualiza, que persiste
+  tras recargar, y que el formulario ya no vuelve a aparecer para ese
+  mismo pedido.
 
 Cada corrida crea sus propios usuarios/tienda/producto con un sufijo
 aleatorio — no depende de ni modifica datos existentes, así que es segura
@@ -37,7 +42,7 @@ npm test
 mano. Para ver el navegador mientras corre: `npm run test:headed`. Para
 ver el reporte HTML de la última corrida: `npm run report`.
 
-## Dos decisiones que vale la pena explicar
+## Decisiones que vale la pena explicar
 
 **Por qué el frontend no se sirve con `python3 -m http.server` directo.**
 `index.html` trae fija la URL del backend de producción
@@ -64,3 +69,14 @@ verdad) y sólo fuerza por SQL el único paso que de otra forma exigiría
 automatizar el panel de administración para un dato de setup. Si algún día
 se agrega un test específico del flujo de aprobación, ese sí debería
 manejarlo por UI, no por SQL.
+
+**Por qué `resenas.spec.js` marca el pedido como `pagado` por SQL directo.**
+Sólo se puede reseñar un producto que ya se compró y pagó (ver
+`docs/BASE_DE_DATOS.md` §5) — el servidor lo valida contra `orders`/
+`order_items` en cada intento, nunca confía en el cliente. Marcar un
+pedido como pagado normalmente lo hace el vendedor desde su panel al
+confirmar el cobro, y ese flujo no es lo que este spec verifica: lo que
+necesita es una compra ya pagada de la que partir. `fixtures/paidOrderFixture.js`
+crea el pedido por la API real (`POST /api/orders`, mismo camino que usa
+`checkout.js`) y sólo fuerza por SQL el estado, mismo criterio que
+`sellerFixture.js` con la verificación de tienda.

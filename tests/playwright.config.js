@@ -9,7 +9,11 @@ import { DATABASE_URL, JWT_SECRET, API_PORT, API_BASE_URL, FRONTEND_PORT } from 
 // propios usuarios/tienda/producto con datos únicos.
 export default defineConfig({
   testDir: './e2e',
-  timeout: 30_000,
+  // resenas.spec.js encadena un fixture más pesado (tienda + producto +
+  // comprador + pedido, cada uno un roundtrip real contra Postgres/server)
+  // antes de tocar la UI — bajo los 2 workers en paralelo de esta sandbox
+  // eso se acerca a los 30s por que tenían comprador/vendedor.spec.js.
+  timeout: 45_000,
   expect: { timeout: 8_000 },
   fullyParallel: false, // los specs comparten el mismo backend/Postgres local
   retries: 0,

@@ -104,8 +104,9 @@ personalmente, sin que el fundador tenga que cargar cada catálogo a mano.
 
 **Qué falta todavía dentro de esta etapa:**
 - ✅ Tests de humo automatizados (Playwright) para el flujo crítico: login →
-  buscar → agregar al carrito → checkout, y alta de producto en el panel
-  de vendedor — ver `tests/` y `ARQUITECTURA.md` §15. Antes la verificación
+  buscar → agregar al carrito → checkout, alta de producto en el panel de
+  vendedor, y escribir una reseña real de un pedido pagado — ver `tests/`
+  y `ARQUITECTURA.md` §15. Antes la verificación
   de este backend se hacía con scripts de Playwright puntuales durante el
   desarrollo, sin persistir como suite en el repo; ahora corre con
   `npm test` desde `tests/` contra Postgres + `server/` reales.
@@ -134,10 +135,15 @@ real de fotos de producto a Cloudinary (hasta 8 por producto, con
 borrar/reordenar — ver `ARQUITECTURA.md` §9 y `BASE_DE_DATOS.md` §4.1),
 **panel de administración con interfaz** (`#/admin`, sólo accesible con
 rol `admin` — ver `server/README.md`, "Panel de administración") para
-aprobar/rechazar tiendas sin tocar SQL, y **pedidos reales**
+aprobar/rechazar tiendas sin tocar SQL, **pedidos reales**
 (`orders`/`order_items`, ver `server/README.md`, "Pedidos reales") — un
 comprador ve su historial desde cualquier dispositivo y un vendedor ve
-pedidos reales en su panel.
+pedidos reales en su panel — y **reseñas reales de producto**, ligadas a
+`order_id` (sólo quien compró y pagó puede reseñar, una vez por pedido —
+`POST /api/products/:id/reviews`, ver `BASE_DE_DATOS.md` §5); el rating y
+el conteo que muestra la ficha de producto ya vienen de esa tabla, no de
+datos de muestra. Reseñas de **tienda** quedan fuera de esta etapa (ver
+`BASE_DE_DATOS.md` §5).
 
 **Qué falta todavía dentro de esta etapa:**
 - Subida de documentos reales para la solicitud
@@ -148,9 +154,6 @@ pedidos reales en su panel.
 - Importación masiva de fotos (ZIP o URLs por columna en el Excel) —
   diseño completo en `BASE_DE_DATOS.md` §4.1, deliberadamente sin construir
   todavía (la subida individual ya sí es real).
-- Reseñas reales de compradores, ligadas a `order_id` (sólo quien compró
-  puede reseñar — ver `BASE_DE_DATOS.md` §3). Ya no depende de nada más:
-  `orders` es real, sólo falta construir el flujo de reseñas en sí.
 - Notificaciones reales (al menos email; push si aplica), reemplazando los
   datos de muestra de `notificationService`.
 - Instrumentación básica de analítica/eventos (funnel: ver producto →

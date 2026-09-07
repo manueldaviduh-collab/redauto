@@ -2,12 +2,14 @@ import { icon, whatsappGlyph } from '../ui/icons.js';
 import {
   productTile, availabilityBadge, typeBadge, verifiedBadge, starRatingBig, formatPrice,
   escapeHtml, backHeaderHtml, emptyState, compatibilityNote, whatsappLink, deliveryOptionsRow, miniStarsRow, ratingInline, storeMark,
+  relativeTime,
 } from '../ui/components.js';
 import { productService } from '../services/productService.js';
 import { storeService } from '../services/storeService.js';
 import { cartService } from '../services/cartService.js';
 import { favoritesService } from '../services/favoritesService.js';
-import { sampleReviewsFor } from '../data/reviews.js';
+import { reviewService } from '../services/reviewService.js';
+import { authService } from '../services/authService.js';
 import { showToast } from '../ui/toast.js';
 import { navigate } from '../nav.js';
 import { openStoreChat } from '../ui/chat.js';
@@ -28,7 +30,11 @@ export async function render(container, { segments }) {
   const store = await storeService.getById(product.storeId);
   const isFav = favoritesService.isFavorite(product.id);
   const showDiscount = product.originalPrice && product.originalPrice > product.price;
-  const reviews = sampleReviewsFor(product);
+  const user = authService.getCurrentUser();
+  const [reviews, eligibility] = await Promise.all([
+    reviewService.getForProduct(product.id),
+    reviewService.getEligibility(product.id, !!user),
+  ]);
   container.classList.add('screen-content--with-sticky-actions');
 
   container.innerHTML = `
@@ -108,6 +114,7 @@ export async function render(container, { segments }) {
             <p class="reviews-summary__count">${product.reviewsCount} reseñas</p>
           </div>
         </div>
+        ${eligibility.canReview ? reviewFormHtml() : ''}
         ${reviews.length ? `<div class="review-list">${reviews.map(reviewRow).join('')}</div>` : ''}
       </section>
     </div>
@@ -120,6 +127,7 @@ export async function render(container, { segments }) {
 
   bindBack(container);
   bindActions(container, product, store);
+  if (eligibility.canReview) bindReviewForm(container, product);
 }
 
 function bindBack(container) {
@@ -180,6 +188,25 @@ function bindActions(container, product, store) {
   });
 }
 
+// Actualiza en el momento el resumen de arriba (estrella grande + "reseñas
+// summary" abajo) con la reseña recién publicada, sin esperar a recargar la
+// pantalla — mismo cálculo que hace el servidor (AVG/COUNT), sólo que acá
+// es incremental porque ya conocemos el estado anterior.
+function updateReviewsSummary(container, product, newRating) {
+  const newCount = product.reviewsCount + 1;
+  const newAvg = (product.rating * product.reviewsCount + newRating) / newCount;
+  product.rating = newAvg;
+  product.reviewsCount = newCount;
+
+  container.querySelector('.product-detail__meta-row').innerHTML = `${starRatingBig(newAvg)}<span class="rating__count">(${newCount} reseñas)</span>`;
+  container.querySelector('.reviews-summary').innerHTML = `
+    <span class="reviews-summary__score">${newAvg.toFixed(1)}</span>
+    <div>
+      ${miniStarsRow(newAvg)}
+      <p class="reviews-summary__count">${newCount} reseñas</p>
+    </div>`;
+}
+
 function reviewRow(r) {
   return `
   <article class="review-row">
@@ -187,7 +214,80 @@ function reviewRow(r) {
       <span class="review-row__author">${escapeHtml(r.author)}</span>
       ${miniStarsRow(r.rating)}
     </div>
-    <p class="review-row__comment">${escapeHtml(r.comment)}</p>
-    <p class="review-row__time">Hace ${r.daysAgo} días</p>
+    ${r.comment ? `<p class="review-row__comment">${escapeHtml(r.comment)}</p>` : ''}
+    <p class="review-row__time">${relativeTime(r.createdAt)}</p>
   </article>`;
+}
+
+// Sólo se pinta cuando eligibility.canReview ya dio true (ver render()) —
+// el servidor vuelve a validar la compra al enviar (nunca confía en que si
+// el formulario está visible es porque el usuario puede reseñar).
+function reviewFormHtml() {
+  return `
+  <form id="review-form" class="review-form stacked-form" novalidate>
+    <p class="field__label">Tu calificación</p>
+    <div class="review-form__stars" id="review-form-stars" role="radiogroup" aria-label="Calificación">
+      ${Array.from({ length: 5 }, (_, i) => `
+        <button type="button" class="review-form__star" data-rating="${i + 1}" aria-label="${i + 1} estrella${i === 0 ? '' : 's'}">
+          ${icon('star', { size: 22 })}
+        </button>`).join('')}
+    </div>
+    <label class="field">
+      <span class="field__label">Comentario (opcional)</span>
+      <textarea name="comment" rows="3" maxlength="1000" placeholder="¿Qué te pareció el producto?"></textarea>
+    </label>
+    <p class="field-error" id="review-form-error" hidden></p>
+    <button type="submit" class="btn btn--outline btn--block" id="review-form-submit">Publicar reseña</button>
+  </form>`;
+}
+
+function bindReviewForm(container, product) {
+  const form = container.querySelector('#review-form');
+  if (!form) return;
+  const starsEl = form.querySelector('#review-form-stars');
+  const errorEl = form.querySelector('#review-form-error');
+  let rating = 0;
+
+  const paintStars = () => {
+    starsEl.querySelectorAll('.review-form__star').forEach((btn) => {
+      btn.classList.toggle('is-selected', Number(btn.dataset.rating) <= rating);
+    });
+  };
+
+  starsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.review-form__star');
+    if (!btn) return;
+    rating = Number(btn.dataset.rating);
+    paintStars();
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.hidden = true;
+    if (!rating) {
+      errorEl.textContent = 'Selecciona una calificación de 1 a 5 estrellas.';
+      errorEl.hidden = false;
+      return;
+    }
+    const submitBtn = form.querySelector('#review-form-submit');
+    submitBtn.disabled = true;
+    const comment = form.querySelector('[name="comment"]').value.trim();
+    const result = await reviewService.create(product.id, { rating, comment });
+    submitBtn.disabled = false;
+    if (!result.ok) {
+      errorEl.textContent = result.error;
+      errorEl.hidden = false;
+      return;
+    }
+    showToast('¡Gracias por tu reseña!', 'success');
+    const reviewList = container.querySelector('.review-list');
+    const newRowHtml = reviewRow(result.review);
+    if (reviewList) {
+      reviewList.insertAdjacentHTML('afterbegin', newRowHtml);
+    } else {
+      form.insertAdjacentHTML('afterend', `<div class="review-list">${newRowHtml}</div>`);
+    }
+    form.remove();
+    updateReviewsSummary(container, product, rating);
+  });
 }
