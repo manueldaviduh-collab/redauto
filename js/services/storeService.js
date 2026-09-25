@@ -3,17 +3,21 @@ import { api } from './api.js';
 // Sólo tiendas reales y verificadas — sin catálogo de muestra mezclado (ver
 // docs/DECISIONES.md). Si el backend no responde, la navegación se degrada
 // a "sin resultados" en vez de mostrar negocios que no existen.
-async function fetchBackendStores() {
+// `city` filtra por ubicación real de la tienda (ver server/src/routes/stores.js).
+async function fetchBackendStores({ city } = {}) {
   try {
-    return await api.get('/stores');
+    const qs = new URLSearchParams();
+    if (city) qs.set('city', city);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return await api.get(`/stores${suffix}`);
   } catch {
     return [];
   }
 }
 
 export const storeService = {
-  async getAll() {
-    const remote = await fetchBackendStores();
+  async getAll(city) {
+    const remote = await fetchBackendStores({ city });
     return remote.sort((a, b) => b.rating - a.rating);
   },
   async getById(id) {
@@ -26,9 +30,9 @@ export const storeService = {
       return null;
     }
   },
-  async search(query) {
+  async search(query, city) {
     const q = (query || '').trim().toLowerCase();
-    const remote = await fetchBackendStores();
+    const remote = await fetchBackendStores({ city });
     if (!q) return remote;
     return remote.filter(
       (s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q)

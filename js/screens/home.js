@@ -7,27 +7,17 @@ import { storeService } from '../services/storeService.js';
 import { vehicleService } from '../services/vehicleService.js';
 import { cartService } from '../services/cartService.js';
 import { notificationService } from '../services/notificationService.js';
-import { getItem, setItem } from '../services/storage.js';
 import { navigate } from '../nav.js';
-import { openModal, closeModal } from '../ui/modal.js';
 import { categories } from '../data/categories.js';
-
-// Lista fija de ciudades reales de Venezuela para el selector del header
-// (solo cambia la etiqueta que se muestra — ver docs/BASE_DE_DATOS.md,
-// city_pref — no filtra productos ni tiendas). Antes tenía sólo 6
-// ciudades; se amplió a una por estado (+ Puerto Ordaz aparte de Ciudad
-// Bolívar, son ciudades distintas) tras un reporte real de un vendedor en
-// Puerto Ordaz que no la encontraba.
-const CITIES = [
-  'Caracas', 'Barcelona', 'Barinas', 'Barquisimeto', 'Cabimas', 'Ciudad Bolívar',
-  'Coro', 'Cumaná', 'Guanare', 'La Guaira', 'Los Teques', 'Maracaibo', 'Maracay',
-  'Maturín', 'Mérida', 'Porlamar', 'Puerto Ayacucho', 'Puerto La Cruz', 'Puerto Ordaz',
-  'San Carlos', 'San Cristóbal', 'San Felipe', 'San Fernando de Apure',
-  'San Juan de los Morros', 'Trujillo', 'Tucupita', 'Valencia', 'Valera',
-];
+import { locationService } from '../services/locationService.js';
+import { openLocationPicker } from '../ui/locationPicker.js';
 
 export async function render(container) {
-  const city = getItem('city_pref', 'Caracas');
+  // null = comprador todavía no eligió ubicación → sin filtro, comportamiento
+  // de siempre (ver locationService.js). Antes esto siempre resolvía a
+  // 'Caracas' por defecto, lo que hacía imposible distinguir "no elegí nada"
+  // de "elegí Caracas" y filtraba el catálogo sin que el usuario lo pidiera.
+  const city = locationService.getCity();
   const garage = vehicleService.getGarage();
   const activeId = vehicleService.getActiveId();
   const activeVehicle = vehicleService.getActive();
@@ -53,7 +43,7 @@ export async function render(container) {
     <div class="screen-pad">
       <button type="button" class="location-chip" id="btn-location">
         ${icon('mapPin', { size: 15 })}
-        <span>${escapeHtml(city)}, Venezuela</span>
+        <span>${city ? `${escapeHtml(city)}, Venezuela` : 'Seleccionar ciudad'}</span>
         ${icon('chevronRight', { size: 14, className: 'location-chip__chevron' })}
       </button>
 
@@ -136,7 +126,7 @@ export async function render(container) {
     </div>
   `;
 
-  bindHeader(container, city);
+  bindHeader(container);
   bindSearch(container);
   bindVehiclePicker(container);
   bindGarage(container);
@@ -145,8 +135,8 @@ export async function render(container) {
   window.addEventListener('redauto:cart-changed', updateCartBadge);
 
   const [featured, stores] = await Promise.all([
-    productService.getFeatured(8),
-    storeService.getAll(),
+    productService.getFeatured(8, city),
+    storeService.getAll(city),
   ]);
 
   const productsHost = container.querySelector('#featured-products');
@@ -171,49 +161,9 @@ export async function render(container) {
   }
 }
 
-function bindHeader(container, city) {
+function bindHeader(container) {
   container.querySelector('#btn-cart')?.addEventListener('click', () => navigate('/carrito'));
-  container.querySelector('#btn-location')?.addEventListener('click', () => {
-    openModal({
-      title: 'Selecciona tu ciudad',
-      bodyHtml: `<div class="option-list" id="city-option-list">${CITIES.map(cityOptionHtml).join('')}</div>`,
-      onMount: (body) => {
-        bindCityOptions(body);
-        loadRealCities(body);
-      },
-    });
-  });
-}
-
-function cityOptionHtml(c) {
-  return `<button type="button" class="option-list__item" data-city="${escapeHtml(c)}">${escapeHtml(c)}, Venezuela</button>`;
-}
-
-function bindCityOptions(scope) {
-  scope.querySelectorAll('[data-city]:not([data-bound])').forEach((btn) => {
-    btn.dataset.bound = '1';
-    btn.addEventListener('click', () => {
-      setItem('city_pref', btn.dataset.city);
-      closeModal();
-      navigate('/');
-    });
-  });
-}
-
-// Además de la lista fija de arriba (CITIES), suma las ciudades donde ya
-// hay tiendas reales verificadas — así la lista crece sola a medida que
-// se registran tiendas nuevas, sin tener que tocar código (ver
-// storeService.getCities()). Se pide después de abrir el modal, no antes,
-// para que el selector abra al instante sin esperar la red.
-async function loadRealCities(body) {
-  const real = await storeService.getCities();
-  const list = body.querySelector('#city-option-list');
-  if (!list || !document.body.contains(list)) return; // el modal ya se cerró
-  const known = new Set(CITIES.map((c) => c.toLowerCase()));
-  const extra = real.filter((c) => c && !known.has(c.toLowerCase()));
-  if (!extra.length) return;
-  list.insertAdjacentHTML('beforeend', extra.map(cityOptionHtml).join(''));
-  bindCityOptions(list);
+  container.querySelector('#btn-location')?.addEventListener('click', () => openLocationPicker());
 }
 
 function bindSearch(container) {

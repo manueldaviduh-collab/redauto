@@ -174,7 +174,7 @@ async function replaceCompatibility(client, productId, list) {
 // /api/stores). Soporta los mismos filtros que productService.search() ya
 // usa.
 productsRouter.get('/', asyncHandler(async (req, res) => {
-  const { categoryId, storeId, availability, type, query: q } = req.query;
+  const { categoryId, storeId, availability, type, query: q, city, state } = req.query;
   const clauses = [`s.verification_status = 'verificada'`];
   const params = [];
 
@@ -183,6 +183,13 @@ productsRouter.get('/', asyncHandler(async (req, res) => {
   if (availability) { params.push(availability); clauses.push(`p.availability = $${params.length}`); }
   if (type) { params.push(type); clauses.push(`p.type = $${params.length}`); }
   if (q) { params.push(`%${q}%`); clauses.push(`(p.name ILIKE $${params.length} OR p.part_brand ILIKE $${params.length})`); }
+  // Filtrado geográfico: el producto no tiene ciudad/estado propios —
+  // hereda la de su tienda (ver stores.city/state). LOWER() en ambos lados
+  // porque el vendedor escribió su ciudad como texto libre al registrarse,
+  // no necesariamente con la misma mayúscula/minúscula que el comprador ve
+  // en el selector (ver stores_city_lower_idx en schema.sql).
+  if (city) { params.push(city); clauses.push(`LOWER(s.city) = LOWER($${params.length})`); }
+  if (state) { params.push(state); clauses.push(`LOWER(s.state) = LOWER($${params.length})`); }
 
   const result = await pool.query(
     `SELECT p.* FROM products p JOIN stores s ON s.id = p.store_id

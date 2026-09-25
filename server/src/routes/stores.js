@@ -71,8 +71,19 @@ async function withExtras(row) {
 
 // GET /api/stores — solo tiendas ya verificadas: una tienda pendiente o
 // rechazada nunca se publica sola a compradores (ver auth.js /register).
+// ?city=/?state= filtran por ubicación real de la tienda (ver
+// GET /api/products, mismo criterio de LOWER() en ambos lados).
 storesRouter.get('/', asyncHandler(async (req, res) => {
-  const result = await pool.query("SELECT * FROM stores WHERE verification_status = 'verificada' ORDER BY created_at DESC");
+  const { city, state } = req.query;
+  const clauses = [`verification_status = 'verificada'`];
+  const params = [];
+  if (city) { params.push(city); clauses.push(`LOWER(city) = LOWER($${params.length})`); }
+  if (state) { params.push(state); clauses.push(`LOWER(state) = LOWER($${params.length})`); }
+
+  const result = await pool.query(
+    `SELECT * FROM stores WHERE ${clauses.join(' AND ')} ORDER BY created_at DESC`,
+    params
+  );
   res.json(await Promise.all(result.rows.map(withExtras)));
 }));
 

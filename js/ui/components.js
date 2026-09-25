@@ -284,13 +284,20 @@ export function storeCardSkeleton() {
   </div>`;
 }
 
-export function emptyState({ iconName = 'search', title, message, actionLabel, actionHref }) {
+// `secondaryLabel` es un <button>, no un <a>: se usa para acciones que
+// abren un modal (p.ej. "Cambiar ubicación" → openLocationPicker()) en vez
+// de navegar. La pantalla que llama a emptyState() debe enlazar el click
+// con [data-empty-secondary] después de insertar el HTML — ver search.js.
+export function emptyState({
+  iconName = 'search', title, message, actionLabel, actionHref, secondaryLabel,
+}) {
   return `
   <div class="empty-state">
     <div class="empty-state__icon">${icon(iconName, { size: 34 })}</div>
     <p class="empty-state__title">${title}</p>
     ${message ? `<p class="empty-state__message">${message}</p>` : ''}
     ${actionLabel ? `<a class="btn btn--primary" href="${actionHref || '#/'}">${actionLabel}</a>` : ''}
+    ${secondaryLabel ? `<button type="button" class="btn btn--outline" data-empty-secondary>${secondaryLabel}</button>` : ''}
   </div>`;
 }
 

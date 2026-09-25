@@ -1,6 +1,8 @@
 import { icon } from '../ui/icons.js';
 import { storeCard, sectionSkeletonGrid, emptyState, bindStoreCardEvents } from '../ui/components.js';
 import { storeService } from '../services/storeService.js';
+import { locationService } from '../services/locationService.js';
+import { openLocationPicker } from '../ui/locationPicker.js';
 
 export async function render(container, { query }) {
   container.innerHTML = `
@@ -29,13 +31,25 @@ async function load(query) {
   const list = document.getElementById('store-list');
   if (!list) return;
   list.innerHTML = sectionSkeletonGrid(4, 'store');
-  const stores = await storeService.search(query);
+  const city = locationService.getCity();
+  const stores = await storeService.search(query, city);
   if (!stores.length) {
-    list.innerHTML = emptyState({
+    // Sin tiendas y con una ciudad elegida: la zona todavía no tiene
+    // cobertura, no es que la búsqueda de texto no haya encontrado nada
+    // (ver instrucción original del filtrado geográfico).
+    list.innerHTML = city ? emptyState({
+      iconName: 'mapPin',
+      title: 'Aún no hay repuestos disponibles en esta zona',
+      message: 'Todavía no tenemos tiendas activas en esta ciudad. Puedes explorar otras ubicaciones o volver al inicio.',
+      actionLabel: 'Volver al inicio',
+      actionHref: '#/',
+      secondaryLabel: 'Cambiar ubicación',
+    }) : emptyState({
       iconName: 'store',
       title: 'No encontramos tiendas con ese criterio',
       message: 'Prueba buscando por nombre de tienda o ciudad.',
     });
+    list.querySelector('[data-empty-secondary]')?.addEventListener('click', () => openLocationPicker());
     return;
   }
   list.innerHTML = stores.map((s) => storeCard(s)).join('');

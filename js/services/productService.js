@@ -54,6 +54,11 @@ async function fetchBackendProducts(params = {}) {
     if (params.availability) qs.set('availability', params.availability);
     if (params.type) qs.set('type', params.type);
     if (params.query) qs.set('query', params.query);
+    // Filtrado geográfico: el producto hereda la ciudad/estado de su tienda
+    // (ver server/src/routes/products.js, JOIN con stores). `state` queda
+    // reservado sin usarse todavía (ver locationService.js).
+    if (params.city) qs.set('city', params.city);
+    if (params.state) qs.set('state', params.state);
     const suffix = qs.toString() ? `?${qs.toString()}` : '';
     return await api.get(`/products${suffix}`);
   } catch {
@@ -63,16 +68,17 @@ async function fetchBackendProducts(params = {}) {
 
 export const productService = {
   // Filtros soportados: { query, brand, model, year, categoryId,
-  // availability, type, minPrice, maxPrice }
+  // availability, type, minPrice, maxPrice, city }
   async search(filters = {}) {
     const remote = await fetchBackendProducts({
-      categoryId: filters.categoryId, availability: filters.availability, type: filters.type, query: filters.query,
+      categoryId: filters.categoryId, availability: filters.availability, type: filters.type,
+      query: filters.query, city: filters.city,
     });
     return applyFilters(remote, filters);
   },
 
-  async getFeatured(limit = 6) {
-    const remote = await fetchBackendProducts();
+  async getFeatured(limit = 6, city) {
+    const remote = await fetchBackendProducts({ city });
     return remote.sort((a, b) => b.rating - a.rating).slice(0, limit);
   },
 

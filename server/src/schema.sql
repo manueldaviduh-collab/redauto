@@ -64,6 +64,13 @@ CREATE TABLE IF NOT EXISTS stores (
 -- Un usuario vendedor = una tienda, por ahora (simplificación consciente:
 -- un mismo dueño con varias tiendas es un caso futuro, no del piloto).
 CREATE UNIQUE INDEX IF NOT EXISTS stores_owner_user_id_idx ON stores (owner_user_id);
+-- Filtrado geográfico real (GET /api/products, GET /api/stores por
+-- ?city=/?state=) — índices funcionales porque el filtro compara
+-- LOWER(city)/LOWER(state) para no depender de que el vendedor haya
+-- escrito la ciudad con la misma mayúscula/minúscula que eligió el
+-- comprador en el selector.
+CREATE INDEX IF NOT EXISTS stores_city_lower_idx ON stores (LOWER(city));
+CREATE INDEX IF NOT EXISTS stores_state_lower_idx ON stores (LOWER(state));
 -- Defensivo para una base ya migrada con el esquema anterior (sin estas
 -- columnas todavía) — en una instalación nueva ya vienen en el CREATE TABLE
 -- de arriba, así que estos ALTER quedan como no-op.

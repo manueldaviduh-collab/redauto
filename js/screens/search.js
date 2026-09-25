@@ -8,6 +8,8 @@ import { categoryService } from '../services/categoryService.js';
 import { vehicleService } from '../services/vehicleService.js';
 import { navigate } from '../nav.js';
 import { openModal, closeModal } from '../ui/modal.js';
+import { locationService } from '../services/locationService.js';
+import { openLocationPicker } from '../ui/locationPicker.js';
 
 const AVAILABILITY_OPTIONS = [
   { value: '', label: 'Cualquiera' },
@@ -36,6 +38,10 @@ export async function render(container, { query }) {
     minPrice: query.minPrice || '',
     maxPrice: query.maxPrice || '',
   };
+  // La ciudad vive en locationService (chip del header), no en la URL de
+  // Buscar — se lee aparte de `filters` para que no termine serializada
+  // como ?city=... cada vez que se aplica/limpia un filtro de la barra.
+  const city = locationService.getCity();
 
   const categories = await categoryService.getAll();
   const activeCategory = categories.find((c) => c.id === filters.categoryId);
@@ -70,8 +76,8 @@ export async function render(container, { query }) {
   container.querySelector('#btn-open-filters')?.addEventListener('click', () => openFiltersSheet(filters));
 
   const [results, stores] = await Promise.all([
-    productService.search(filters),
-    storeService.getAll(),
+    productService.search({ ...filters, city }),
+    storeService.getAll(city),
   ]);
   const storeMap = new Map(stores.map((s) => [s.id, s]));
 
@@ -81,13 +87,25 @@ export async function render(container, { query }) {
 
   if (!results.length) {
     countEl.textContent = 'Sin resultados';
-    listEl.innerHTML = emptyState({
+    // Sin resultados y con una ciudad elegida: probablemente no es que
+    // falten los filtros de búsqueda, es que esa zona todavía no tiene
+    // tiendas activas — mensaje específico en vez del genérico "prueba
+    // otra palabra clave" (ver instrucción original del filtrado geográfico).
+    listEl.innerHTML = city ? emptyState({
+      iconName: 'mapPin',
+      title: 'Aún no hay repuestos disponibles en esta zona',
+      message: 'Todavía no tenemos tiendas activas en esta ciudad. Puedes explorar otras ubicaciones o volver al inicio.',
+      actionLabel: 'Volver al inicio',
+      actionHref: '#/',
+      secondaryLabel: 'Cambiar ubicación',
+    }) : emptyState({
       iconName: 'search',
       title: 'No encontramos repuestos con esos filtros',
       message: 'Intenta con otra palabra clave, quita algún filtro o revisa la compatibilidad del vehículo.',
       actionLabel: 'Limpiar filtros',
       actionHref: '#/buscar',
     });
+    listEl.querySelector('[data-empty-secondary]')?.addEventListener('click', () => openLocationPicker());
     return;
   }
 
