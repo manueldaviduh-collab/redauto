@@ -34,4 +34,14 @@ export const storeService = {
       (s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q)
     );
   },
+  // Ciudades reales con al menos una tienda verificada — usado por
+  // home.js para ampliar su lista fija de ciudades con las que de verdad
+  // tienen cobertura, sin inventar nada.
+  async getCities() {
+    try {
+      return await api.get('/stores/cities');
+    } catch {
+      return [];
+    }
+  },
 };

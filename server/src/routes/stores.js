@@ -210,6 +210,18 @@ storesRouter.patch('/:id/verification', requireAuth, requireAdmin, asyncHandler(
   res.json(await withExtras(result.rows[0]));
 }));
 
+// GET /api/stores/cities — ciudades reales con al menos una tienda ya
+// verificada, para que el selector de ciudad de Inicio (js/screens/home.js)
+// crezca solo a medida que se registran tiendas de verdad, sin tener que
+// tocar código cada vez. Tiene que ir antes de GET /:id — si no, Express
+// leería "cities" como si fuera el id de una tienda.
+storesRouter.get('/cities', asyncHandler(async (req, res) => {
+  const result = await pool.query(
+    "SELECT DISTINCT city FROM stores WHERE verification_status = 'verificada' AND city IS NOT NULL AND city != '' ORDER BY city"
+  );
+  res.json(result.rows.map((r) => r.city));
+}));
+
 // GET /api/stores/:id — pública sólo si la tienda ya está verificada (igual
 // que GET /). Un admin autenticado (optionalAuth: no rechaza si no manda
 // token) puede ver cualquiera, para revisarla antes de aprobar/rechazar
