@@ -1,4 +1,4 @@
-import { getItem, setItem } from './storage.js';
+import { getItem, setItem, removeItem } from './storage.js';
 
 // Única fuente de la ubicación que el comprador eligió (mismo dato que ya
 // existía como "city_pref", ver docs/BASE_DE_DATOS.md) — antes vivía
@@ -14,6 +14,12 @@ export const locationService = {
   },
   setCity(city) {
     setItem('city_pref', city);
+  },
+  // Quita el filtro por completo (no lo deja en null "activo") — usado por
+  // el botón "Volver al inicio" del estado vacío de zona, para que ninguna
+  // otra pantalla arrastre una ciudad sin resultados.
+  clearCity() {
+    removeItem('city_pref');
   },
   getState() {
     return getItem('state_pref', null);

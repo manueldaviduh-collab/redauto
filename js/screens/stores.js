@@ -50,6 +50,13 @@ async function load(query) {
       message: 'Prueba buscando por nombre de tienda o ciudad.',
     });
     list.querySelector('[data-empty-secondary]')?.addEventListener('click', () => openLocationPicker());
+    if (city) {
+      // "Volver al inicio" en el estado vacío de zona no es una vuelta
+      // normal a Home: además limpia city_pref por completo, para que el
+      // filtro no se quede pegado en otras pantallas después de que el
+      // usuario abandonó una ciudad sin resultados.
+      list.querySelector('.empty-state .btn--primary')?.addEventListener('click', () => locationService.clearCity());
+    }
     return;
   }
   list.innerHTML = stores.map((s) => storeCard(s)).join('');

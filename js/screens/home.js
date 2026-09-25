@@ -134,9 +134,13 @@ export async function render(container) {
   updateCartBadge();
   window.addEventListener('redauto:cart-changed', updateCartBadge);
 
+  // Home siempre muestra el catálogo nacional completo, sin importar la
+  // ciudad elegida en el chip — el filtro geográfico sólo se aplica en
+  // Buscar y Tiendas (ver search.js/stores.js). El chip sigue guardando
+  // la preferencia para esas pantallas, pero no filtra lo que se ve acá.
   const [featured, stores] = await Promise.all([
-    productService.getFeatured(8, city),
-    storeService.getAll(city),
+    productService.getFeatured(8),
+    storeService.getAll(),
   ]);
 
   const productsHost = container.querySelector('#featured-products');
