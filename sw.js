@@ -12,7 +12,7 @@
 // primera visita después de cada despliegue, hasta la siguiente recarga.
 // Cambiar CACHE_VERSION fuerza además una limpieza completa de caché
 // (usarlo si algún día hace falta invalidar todo de una vez).
-const CACHE_VERSION = 'redauto-shell-v5';
+const CACHE_VERSION = 'redauto-shell-v6';
 
 const PRECACHE_URLS = [
   '/',
@@ -67,6 +67,22 @@ const PRECACHE_URLS = [
   '/assets/favicon.png',
   '/assets/logo-mark.png',
   '/assets/splash-logo.png',
+  '/assets/category-icons/motor-256.webp',
+  '/assets/category-icons/motor-512.webp',
+  '/assets/category-icons/frenos-256.webp',
+  '/assets/category-icons/frenos-512.webp',
+  '/assets/category-icons/suspension-256.webp',
+  '/assets/category-icons/suspension-512.webp',
+  '/assets/category-icons/baterias-256.webp',
+  '/assets/category-icons/baterias-512.webp',
+  '/assets/category-icons/aceites-256.webp',
+  '/assets/category-icons/aceites-512.webp',
+  '/assets/category-icons/filtros-256.webp',
+  '/assets/category-icons/filtros-512.webp',
+  '/assets/category-icons/iluminacion-256.webp',
+  '/assets/category-icons/iluminacion-512.webp',
+  '/assets/category-icons/cauchos-256.webp',
+  '/assets/category-icons/cauchos-512.webp',
   '/assets/icons/apple-touch-icon.png',
   '/assets/icons/apple-touch-icon-120.png',
   '/assets/icons/apple-touch-icon-152.png',

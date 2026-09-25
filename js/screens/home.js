@@ -100,7 +100,7 @@ export async function render(container) {
         <div class="category-grid">
           ${categories.map((c) => `
             <button type="button" class="category-tile" data-category="${c.id}">
-              <span class="category-tile__icon">${icon(c.icon, { size: 22 })}</span>
+              <span class="category-tile__icon">${categoryIconMarkup(c)}</span>
               <span class="category-tile__label">${c.name}</span>
             </button>`).join('')}
         </div>
@@ -231,8 +231,31 @@ function bindGarage(container) {
   });
 }
 
+// Render premium por categoría (assets/category-icons/), local a esta
+// pantalla a propósito — no es un módulo compartido, para que quede claro
+// que esto no toca el sistema de imágenes de producto (productArt.js,
+// productTile()). 256/512 vía srcset para pantallas de alta densidad;
+// si el archivo no carga, bindCategories() lo reemplaza por el ícono SVG
+// de siempre — nunca queda un espacio vacío.
+function categoryIconMarkup(c) {
+  return `<img
+    src="assets/category-icons/${c.id}-256.webp"
+    srcset="assets/category-icons/${c.id}-256.webp 1x, assets/category-icons/${c.id}-512.webp 2x"
+    width="44" height="44" alt="" aria-hidden="true"
+    data-category-icon="${c.id}" data-fallback-icon="${c.icon}" />`;
+}
+
 function bindCategories(container) {
   container.querySelectorAll('[data-category]').forEach((btn) => {
     btn.addEventListener('click', () => navigate(`/buscar?categoryId=${btn.dataset.category}`));
   });
+
+  // 'error' de <img> no burbujea — hay que escucharlo en fase de captura
+  // para agarrar el fallo de cualquiera de los 8 <img> sin bindear uno por
+  // uno. Se reemplaza sólo el <img> que falló, por su ícono SVG de antes.
+  container.addEventListener('error', (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement) || !img.dataset.categoryIcon) return;
+    img.outerHTML = icon(img.dataset.fallbackIcon, { size: 22 });
+  }, true);
 }
