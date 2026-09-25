@@ -12,7 +12,19 @@ import { navigate } from '../nav.js';
 import { openModal, closeModal } from '../ui/modal.js';
 import { categories } from '../data/categories.js';
 
-const CITIES = ['Caracas', 'Valencia', 'Maracaibo', 'Barquisimeto', 'Maracay', 'Barcelona'];
+// Lista fija de ciudades reales de Venezuela para el selector del header
+// (solo cambia la etiqueta que se muestra — ver docs/BASE_DE_DATOS.md,
+// city_pref — no filtra productos ni tiendas). Antes tenía sólo 6
+// ciudades; se amplió a una por estado (+ Puerto Ordaz aparte de Ciudad
+// Bolívar, son ciudades distintas) tras un reporte real de un vendedor en
+// Puerto Ordaz que no la encontraba.
+const CITIES = [
+  'Caracas', 'Barcelona', 'Barinas', 'Barquisimeto', 'Cabimas', 'Ciudad Bolívar',
+  'Coro', 'Cumaná', 'Guanare', 'La Guaira', 'Los Teques', 'Maracaibo', 'Maracay',
+  'Maturín', 'Mérida', 'Porlamar', 'Puerto Ayacucho', 'Puerto La Cruz', 'Puerto Ordaz',
+  'San Carlos', 'San Cristóbal', 'San Felipe', 'San Fernando de Apure',
+  'San Juan de los Morros', 'Trujillo', 'Tucupita', 'Valencia', 'Valera',
+];
 
 export async function render(container) {
   const city = getItem('city_pref', 'Caracas');
