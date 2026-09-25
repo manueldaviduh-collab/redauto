@@ -621,7 +621,17 @@ img, svg { display: block; max-width: 100%; }
 .badge--off { background: var(--color-danger-soft); color: #ff7a76; }
 .badge--wait { background: var(--color-warning-soft); color: var(--color-warning); }
 .badge--neutral { background: var(--color-surface-2); color: var(--color-text-secondary); }
+/* .badge--verified se reutiliza en js/screens/myVehicles.js ("Vehículo
+   activo") — no es exclusiva de la insignia de tienda verificada de abajo,
+   no se toca. */
 .badge--verified { background: var(--color-red-soft); color: var(--color-red); }
+
+/* Insignia oficial "Tienda verificada RedAuto" (assets/verified-badge.webp)
+   — una sola imagen a proporción fija; el modificador --compact sólo la
+   escala más chica para filas angostas (junto al nombre de una tienda),
+   nunca la recorta ni la redibuja. */
+.verified-badge { display: inline-block; height: 26px; width: auto; vertical-align: middle; }
+.verified-badge--compact { height: 18px; }
 
 .rating { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; }
 .rating__icon { color: var(--color-warning); }

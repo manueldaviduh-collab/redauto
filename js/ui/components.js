@@ -84,8 +84,13 @@ export function typeBadge(type) {
   return `<span class="badge badge--neutral">${type === 'original' ? 'Original' : 'Alternativo'}</span>`;
 }
 
+// Insignia oficial de verificación de la plataforma — una sola imagen
+// (assets/verified-badge.webp), nunca reconstruida en variantes: donde el
+// espacio es angosto (compact:true, ej. junto al nombre de una tienda en
+// una fila) se escala proporcionalmente más chica por CSS
+// (.verified-badge--compact), nunca recortada ni redibujada.
 export function verifiedBadge({ compact = false } = {}) {
-  return `<span class="badge badge--verified">${icon('shieldCheck', { size: 13 })}${compact ? '' : ' Tienda verificada RedAuto'}</span>`;
+  return `<img class="verified-badge${compact ? ' verified-badge--compact' : ''}" src="assets/verified-badge.webp" alt="Tienda verificada RedAuto" />`;
 }
 
 export function discountBadge(percent) {

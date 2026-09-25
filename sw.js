@@ -12,7 +12,7 @@
 // primera visita después de cada despliegue, hasta la siguiente recarga.
 // Cambiar CACHE_VERSION fuerza además una limpieza completa de caché
 // (usarlo si algún día hace falta invalidar todo de una vez).
-const CACHE_VERSION = 'redauto-shell-v6';
+const CACHE_VERSION = 'redauto-shell-v7';
 
 const PRECACHE_URLS = [
   '/',
@@ -67,6 +67,7 @@ const PRECACHE_URLS = [
   '/assets/favicon.png',
   '/assets/logo-mark.png',
   '/assets/splash-logo.png',
+  '/assets/verified-badge.webp',
   '/assets/category-icons/motor-256.webp',
   '/assets/category-icons/motor-512.webp',
   '/assets/category-icons/frenos-256.webp',
